@@ -1,0 +1,1 @@
+My filters: your own ad-block rules (uBlock syntax), edited in Settings or from the phone remote. It starts with exceptions for the JW Player domains the hosts list blocked, which fixes "problem providing access to protected content" on some web feeds.

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.4-sfm.3 (2026-11-18)
+
+- **My filters:** your own ad-block rules in uBlock syntax, edited in Settings → My filters or from the phone
+  remote page, applied as soon as you save. An `@@` exception rule beats every list.
+- **Fix for JW Player feeds:** the bundled hosts list blocked domains JW Player needs, so some web feeds showed
+  "There was a problem providing access to protected content". My filters starts with exceptions for
+  `connatix.com`, `jwpltx.com` and `entitlements.jwplayer.com`.
+- My filters is kept on the TV, never downloaded; it can be edited or turned off but not removed.
+
 ## 1.2.4-sfm.2 (2026-11-18)
 
 - **Auto-reload for web feeds that never start:** a web tile reloads itself if no video plays within 20 s (then
