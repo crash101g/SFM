@@ -648,7 +648,7 @@ class VideoBar(context: Context, private val actions: Actions) : LinearLayout(co
         }
         addView(resume, LayoutParams(LayoutParams.WRAP_CONTENT, 72.px).apply { bottomMargin = 16.px; gravity = Gravity.START })
 
-        val buttons = LinearLayout(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, 16.px, 0, 0) }
+        val buttons = ButtonRow(context).apply { orientation = HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, 16.px, 0, 0) }
         buttons.addView(button(R.drawable.ic_fast_rewind, R.string.rewind_10) { actions.command("seekBy", -10.0) })
         playPause = button(R.drawable.ic_pause, R.string.play_pause) { actions.command("toggle") }
         buttons.addView(playPause)
@@ -764,6 +764,22 @@ class VideoBar(context: Context, private val actions: Actions) : LinearLayout(co
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (showing && event.action == KeyEvent.ACTION_DOWN) { removeCallbacks(hide); postDelayed(hide, 5000) }
         return super.dispatchKeyEvent(event)
+    }
+
+    /**
+     * The row of buttons. Left and Right step through it in order, skipping hidden buttons, and stop at its ends.
+     * Android's own search goes to the nearest view on screen in that direction: from fast-forward that is the timeline
+     * above, not "1x" far to the right, so the buttons on the right couldn't be reached with the arrows. Up and Down
+     * are left to Android (Up reaches the timeline, or "Continue from" when offered).
+     */
+    private class ButtonRow(context: Context) : LinearLayout(context) {
+        override fun focusSearch(focused: View?, direction: Int): View? {
+            val step = when (direction) { FOCUS_LEFT -> -1; FOCUS_RIGHT -> 1; else -> 0 }
+            if (step == 0 || focused == null || focused.parent !== this) return super.focusSearch(focused, direction)
+            val order = (0 until childCount).map(::getChildAt).filter { it.visibility == VISIBLE && it.isFocusable && it.isEnabled }
+            val i = order.indexOf(focused)
+            return order.getOrNull(i + step) ?: focused
+        }
     }
 
     /** Focusable timeline. Left/Right move a pending target in growing steps; it is committed 700 ms later. */
