@@ -93,4 +93,36 @@ class FeedTest {
         assertNull(cam.pin)
         assertEquals(Feed.Kind.WEB, (Feed.parseFromPhone("https://example.com/live") as Feed.Parsed.Ok).feed.kind)
     }
+
+    @Test fun videoFromTheBrowser() {
+        val ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/140.0.0.0 Safari/537.36"
+        val f = (Feed.fromBrowser("https://cdn.example.net/hls/master.m3u8?token=abc", "https://www.example.com/watch/1", false, ua)
+            as Feed.Parsed.Ok).feed
+        assertEquals(Feed.Kind.STREAM, f.kind)
+        assertEquals("https://www.example.com/watch/1", f.frame)
+        assertEquals(ua, f.userAgent)
+        assertEquals("example.com (video)", f.label)
+        // The browser knows it's a stream, even without a known extension.
+        assertEquals(Feed.Kind.STREAM, (Feed.fromBrowser("https://cdn.example.net/manifest?id=7", "https://example.com/", false, ua)
+            as Feed.Parsed.Ok).feed.kind)
+    }
+
+    @Test fun videoFromTheBrowserKeepsTheRules() {
+        assertEquals(Feed.Reason.NOT_HTTP, (Feed.fromBrowser("blob:https://example.com/1234", "https://example.com/", true, "ua")
+            as Feed.Parsed.Error).reason)
+        assertEquals(Feed.Reason.NOT_HTTP, (Feed.fromBrowser("data:video/mp4;base64,AAAA", null, true, "ua") as Feed.Parsed.Error).reason)
+        // A frame that isn't http(s) is dropped, and media goes with it.
+        val f = (Feed.fromBrowser("https://cdn.example.net/v.mp4", "about:blank", true, "ua") as Feed.Parsed.Ok).feed
+        assertNull(f.frame)
+        assertFalse(f.media)
+        // A User-Agent that could break the request line is dropped.
+        assertNull((Feed.fromBrowser("https://cdn.example.net/v.mp4", "https://example.com/", true, "a\r\nX-Evil: 1")
+            as Feed.Parsed.Ok).feed.userAgent)
+        // On the home network it's a camera: https, pinned, and none of the page's headers.
+        val cam = (Feed.fromBrowser("https://192.168.1.60/live.m3u8", "https://example.com/", false, "ua") as Feed.Parsed.Ok).feed
+        assertEquals(Feed.Kind.CAMERA, cam.kind)
+        assertNull(cam.frame)
+        assertEquals(Feed.Reason.CAMERA_NEEDS_HTTPS, (Feed.fromBrowser("http://192.168.1.60/live.m3u8", "https://example.com/", false, "ua")
+            as Feed.Parsed.Error).reason)
+    }
 }

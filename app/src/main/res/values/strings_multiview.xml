@@ -11,6 +11,10 @@
     <string name="multiview_camera_untrusted">This camera\'s certificate hasn\'t been trusted yet. Edit the feed to check it.</string>
 
     <string name="add_to_multiview">Add to Multiview</string>
+    <string name="send_to_multiview">Send to Multiview</string>
+    <string name="multiview_video_private">Videos from private browsing aren\'t sent to Multiview: it would save them.</string>
+    <string name="multiview_video_no_stream">Couldn\'t find this video\'s stream. Add to Multiview (in the menu) adds the page instead.</string>
+    <string name="multiview_video_expired">The video\'s link was refused (403); sites often make them expire.\nSend it again from the browser, or add the page instead.</string>
     <string name="multiview_added">Added as feed %1$d</string>
     <string name="multiview_menu_audio">Sound from this feed</string>
     <string name="multiview_menu_solo">Full screen</string>

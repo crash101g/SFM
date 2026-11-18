@@ -33,9 +33,13 @@ class FeedStore(context: Context) {
                 val parsed = Feed.parse(url) as? Feed.Parsed.Ok ?: continue
                 // A camera keeps its kind without its login (which is stored apart), as long as it is https.
                 if (kind == Feed.Kind.CAMERA) { if (!parsed.feed.url.startsWith("https://")) continue }
-                else if (parsed.feed.kind != kind) continue
+                else if (parsed.feed.kind != kind && !(kind == Feed.Kind.STREAM && parsed.feed.kind == Feed.Kind.WEB && o.has("frame"))) continue
+                // A browser video's page must be http(s) too; anything else and the headers are left off.
+                val frame = o.optString("frame").ifEmpty { null }?.takeIf { kind == Feed.Kind.STREAM && NavigationLock.siteOf(it) != null }
                 out[i] = Feed(kind, parsed.feed.url, o.optString("user").ifEmpty { null },
-                    o.optString("password").ifEmpty { null }, o.optString("pin").ifEmpty { null })
+                    o.optString("password").ifEmpty { null }, o.optString("pin").ifEmpty { null },
+                    frame = frame, media = frame != null && o.optBoolean("media"),
+                    userAgent = o.optString("ua").ifEmpty { null }?.takeIf { frame != null && it.none { c -> c < ' ' } })
             }
         }
         return out
@@ -50,6 +54,9 @@ class FeedStore(context: Context) {
                 f.user?.let { put("user", it) }
                 f.password?.let { put("password", it) }
                 f.pin?.let { put("pin", it) }
+                f.frame?.let { put("frame", it) }
+                if (f.media) put("media", true)
+                f.userAgent?.let { put("ua", it) }
             })
         }
         val json = arr.toString()

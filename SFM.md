@@ -37,7 +37,15 @@ In SFM's browser, the menu's **Add to Multiview** button (the four-tile icon, ne
 you're on. It opens Multiview with the page in the first empty slot, or asks which feed to replace. It isn't offered in
 private browsing, since adding saves the address.
 
-The address goes to Multiview in memory (`MultiviewInbox`), not in the intent: Multiview is exported for the launcher and
+**Send to Multiview** on the fullscreen video bar (next to **Play in…**) sends the video itself. SFM finds the stream as
+"Play in…" does: the video's own address, or else the manifest its page fetched. It becomes a stream tile labelled
+"site (video)". The tile asks for the stream as the page's player did, using Sofa Player's rules (`PageHeaders`):
+the page or frame as Referer and Origin, the browser's User-Agent, and Sec-Fetch headers. The site's cookies are read
+fresh from the browser at each request, only where the page's player would send them, and never stored with the feed.
+Protected (DRM) videos and private browsing are refused. A file loops, and a live stream reconnects. Many sites put
+an expiring token in the stream address, so a tile that gets a 403 says to send the video again or add the page.
+
+Both hand-offs go to Multiview in memory (`MultiviewInbox`), not in the intent: Multiview is exported for the launcher and
 ignores intent data. The address is taken once, and only within 30 s, so one that never arrived can't turn up later.
 
 ### From the phone
@@ -127,8 +135,8 @@ and pull request. The APK is attached to the run as an artifact.
 
 ## Not done yet
 
-- "Add to Multiview" adds the page, not the video stream the browser found on it (stream addresses often need the
-  page's cookies and headers, which a stream tile doesn't send).
+- A video whose stream works only inside its page (the site checks something besides headers and cookies) won't
+  play in a tile; add the page instead.
 - No RTSP: cameras must offer an https stream (HLS, DASH or progressive) that ExoPlayer plays.
 - No auto-reload of web feeds that never start playing (the desktop app's `auto_reload`); use Reload.
 - No cosmetic filtering (element hiding) in web tiles, only network blocking.

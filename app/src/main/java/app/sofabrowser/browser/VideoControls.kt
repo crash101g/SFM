@@ -555,6 +555,8 @@ class VideoBar(context: Context, private val actions: Actions) : LinearLayout(co
         fun exitFullscreen()
         fun toggleVideoInfo()
         fun playIn(choose: Boolean)
+        /** SFM: the video playing, as a Multiview feed. */
+        fun sendToMultiview()
         fun pictureInPicture()
         /** Sofa Player's quality, sound and subtitle choices. */
         fun tracks()
@@ -683,6 +685,7 @@ class VideoBar(context: Context, private val actions: Actions) : LinearLayout(co
                 }
             }
         })
+        buttons.addView(button(R.drawable.ic_multiview, R.string.send_to_multiview) { actions.sendToMultiview() })
         pip = button(R.drawable.ic_picture_in_picture_alt, R.string.picture_in_picture) { actions.pictureInPicture() }
             .apply { visibility = GONE }
         buttons.addView(pip)

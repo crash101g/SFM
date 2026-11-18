@@ -84,17 +84,17 @@ class MultiviewActivity : Activity() {
     override fun onResume() {
         super.onResume()
         // "Add to Multiview" from the browser (in memory, never from the intent).
-        MultiviewInbox.take()?.let { add(it, fromPhone = false) }
+        MultiviewInbox.take()?.let { add(it.url, fromPhone = false, video = it.takeIf { h -> h.video }) }
     }
 
     /** Puts [input] in the first empty slot, or asks which feed to replace; the usual checks and camera trust apply. */
-    private fun add(input: String, fromPhone: Boolean) {
+    private fun add(input: String, fromPhone: Boolean, video: MultiviewInbox.Handoff? = null) {
         val free = feeds.indexOfFirst { it == null }
-        if (free >= 0) return save(free, input, null, fromPhone = fromPhone)
+        if (free >= 0) return save(free, input, null, fromPhone = fromPhone, video = video)
         val names = (0 until Feed.MAX).map { getString(R.string.multiview_slot, it + 1, feeds[it]?.label.orEmpty()) }
         Ui.dialog(this)
             .setTitle(R.string.multiview_replace_title)
-            .setItems(names.toTypedArray()) { _, which -> save(which, input, feeds[which], fromPhone = fromPhone) }
+            .setItems(names.toTypedArray()) { _, which -> save(which, input, feeds[which], fromPhone = fromPhone, video = video) }
             .setNegativeButton(R.string.multiview_cancel, null)
             .show()
     }
@@ -286,10 +286,20 @@ class MultiviewActivity : Activity() {
         b.show()
     }
 
-    private fun save(i: Int, text: String, old: Feed?, user: String? = null, password: String? = null, fromPhone: Boolean = false) {
-        var feed = when (val r = if (fromPhone) Feed.parseFromPhone(text) else Feed.parse(text, user, password)) {
+    private fun save(i: Int, text: String, old: Feed?, user: String? = null, password: String? = null, fromPhone: Boolean = false,
+                     video: MultiviewInbox.Handoff? = null) {
+        val parsed = when {
+            video != null -> Feed.fromBrowser(text, video.frame, video.media, video.userAgent)
+            fromPhone -> Feed.parseFromPhone(text)
+            else -> Feed.parse(text, user, password)
+        }
+        var feed = when (val r = parsed) {
             is Feed.Parsed.Error -> { toast(errorText(r.reason)); return }
             is Feed.Parsed.Ok -> r.feed
+        }
+        // A video from the browser, saved again unchanged in Edit feeds, keeps the page it plays for.
+        if (video == null && old?.frame != null && feed.url == old.url && feed.kind != Feed.Kind.CAMERA) {
+            feed = feed.copy(kind = Feed.Kind.STREAM, frame = old.frame, media = old.media, userAgent = old.userAgent)
         }
         // A camera address without a login (from the phone, or the fields left empty) keeps the login it had.
         if (feed.user == null && old?.kind == Feed.Kind.CAMERA && old.user != null &&

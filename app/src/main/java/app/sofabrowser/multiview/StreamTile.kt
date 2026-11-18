@@ -21,7 +21,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
+import android.webkit.CookieManager
 import app.sofabrowser.R
+import app.sofabrowser.browser.PageHeaders
 
 /**
  * A direct stream or an IP camera, played by ExoPlayer. Only http and https are loaded, by the player and by every
@@ -55,8 +57,9 @@ class StreamTile(context: Context, index: Int, feed: Feed) : Tile(context, index
             tls = pinned
             CameraDataSource.Factory(feed, pinned)
         } else {
+            val userAgent = feed.userAgent ?: USER_AGENT
             val http = DefaultHttpDataSource.Factory()
-                .setUserAgent(USER_AGENT)
+                .setUserAgent(userAgent)
                 // https never falls back to http on a redirect.
                 .setAllowCrossProtocolRedirects(false)
                 .setConnectTimeoutMs(TIMEOUT_MS)
@@ -67,7 +70,11 @@ class StreamTile(context: Context, index: Int, feed: Feed) : Tile(context, index
                 if (scheme != "http" && scheme != "https") throw HttpDataSource.HttpDataSourceException(
                     "Only http and https streams play in Multiview", spec,
                     PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED, HttpDataSource.HttpDataSourceException.TYPE_OPEN)
-                spec
+                // A video sent from the browser: asked for as the page's player asked (as Sofa Player does), with the
+                // site's cookies read fresh from the browser, only where that player would have sent them.
+                val frame = feed.frame ?: return@Factory spec
+                spec.withAdditionalHeaders(PageHeaders.forRequest(spec.uri.toString(), frame, userAgent,
+                    { url -> runCatching { CookieManager.getInstance().getCookie(url) }.getOrNull() }, media = feed.media) - "User-Agent")
             }
         }
         val p = ExoPlayer.Builder(context, DefaultRenderersFactory(context).setEnableDecoderFallback(true))
@@ -94,12 +101,15 @@ class StreamTile(context: Context, index: Int, feed: Feed) : Tile(context, index
                 if (stop != null) {
                     fail(context.getString(when (stop) {
                         Reconnect.Stop.LOGIN_REJECTED -> R.string.multiview_login_rejected
-                        Reconnect.Stop.FORBIDDEN -> R.string.multiview_forbidden
+                        // A browser video's address often carries a token that runs out.
+                        Reconnect.Stop.FORBIDDEN -> if (feed.frame != null) R.string.multiview_video_expired else R.string.multiview_forbidden
                         Reconnect.Stop.CERT_CHANGED -> R.string.multiview_cert_changed
                     }))
                 } else retry()
             }
         })
+        // A file (a video sent from the browser, say) loops; a live stream that ends has dropped (onPlaybackStateChanged).
+        p.repeatMode = Player.REPEAT_MODE_ONE
         p.setMediaItem(MediaItem.fromUri(Uri.parse(feed.url)))
         p.playWhenReady = true
         p.prepare()

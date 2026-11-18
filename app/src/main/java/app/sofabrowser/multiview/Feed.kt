@@ -20,6 +20,16 @@ data class Feed(
     val password: String? = null,
     /** SHA-256 of the camera's certificate, as [CertPin.format] writes it; null until the user trusts one. */
     val pin: String? = null,
+    /**
+     * A video sent from the browser: the page (or frame) whose player fetched the stream. The tile asks for the stream
+     * as that player did ([app.sofabrowser.browser.PageHeaders]: Referer, Origin, the site's own cookies, read fresh
+     * from the browser at each request and never stored here).
+     */
+    val frame: String? = null,
+    /** The stream was the video element's own src, not a manifest the page's script fetched. */
+    val media: Boolean = false,
+    /** The browser's User-Agent when the video was sent, so the site sees the same browser. */
+    val userAgent: String? = null,
 ) {
     enum class Kind { WEB, STREAM, CAMERA }
 
@@ -29,7 +39,8 @@ data class Feed(
     val port: Int get() = runCatching { URI(url).let { if (it.port > 0) it.port else if (it.scheme == "https") 443 else 80 } }.getOrDefault(443)
 
     /** For the tile's title bar: the host, with "user@" in front for a camera that logs in (never the password). */
-    val label: String get() = (if (user != null) "$user@" else "") + host + if (port != 443 && port != 80) ":$port" else ""
+    val label: String get() = frame?.let { NavigationLock.siteOf(it)?.let { site -> "$site (video)" } }
+        ?: ((if (user != null) "$user@" else "") + host + if (port != 443 && port != 80) ":$port" else "")
 
     sealed class Parsed {
         data class Ok(val feed: Feed) : Parsed()
@@ -101,6 +112,22 @@ data class Feed(
             val parsed = parse(input)
             if (parsed is Parsed.Ok && parsed.feed.user != null) return Parsed.Error(Reason.LOGIN_OVER_PHONE)
             return parsed
+        }
+
+        /**
+         * The video playing in the browser: its [stream] address, the [frame] whose player fetched it, and the browser's
+         * [userAgent]. The stream follows the usual rules (http(s) only); the browser found it, so it is a stream even
+         * without a known extension. A frame that isn't http(s) is dropped. A stream on the home network is a camera,
+         * with the camera's rules and none of the page's headers.
+         */
+        fun fromBrowser(stream: String, frame: String?, media: Boolean, userAgent: String?): Parsed {
+            val parsed = parse(stream)
+            if (parsed !is Parsed.Ok) return parsed
+            val feed = parsed.feed
+            if (feed.kind == Kind.CAMERA) return parsed
+            val page = frame?.takeIf { NavigationLock.siteOf(it) != null }
+            return Parsed.Ok(feed.copy(kind = Kind.STREAM, frame = page, media = media && page != null,
+                userAgent = userAgent?.takeIf { it.isNotBlank() && it.length <= 512 && it.none { c -> c < ' ' } }))
         }
 
         fun isStreamPath(path: String): Boolean {

@@ -620,7 +620,7 @@ class MainActivity : Activity(), HomeView.Listener, Browser.Host, BrowserMenu.Ac
             BrowserMenu.Action.MULTIVIEW -> if (Browser.isWebUrl(url) && !browser.privateMode) {
                 menu?.dismiss()
                 // In memory, not in the intent: Multiview ignores intent data, since other apps can start it.
-                app.sofabrowser.multiview.MultiviewInbox.put(url)
+                app.sofabrowser.multiview.MultiviewInbox.put(app.sofabrowser.multiview.MultiviewInbox.Handoff(url))
                 startActivity(Intent(this, app.sofabrowser.multiview.MultiviewActivity::class.java))
             }
         }
@@ -1097,6 +1097,51 @@ class MainActivity : Activity(), HomeView.Listener, Browser.Host, BrowserMenu.Ac
         playInSince = now
         choosePlayer = choose
         if (!collectSources(::playInChosen)) playInSince = 0L
+    }
+
+    /**
+     * SFM: the video playing, as a Multiview feed. Its stream is found as for "Play in…" (the video's own address, else
+     * the manifest its page fetched) and goes to Multiview in memory ([MultiviewInbox]) with the frame that fetched it
+     * and the User-Agent, so the tile can ask for it as the page's player did. Not for protected videos, which play
+     * only in the site's player, nor in private browsing, since a feed is saved.
+     */
+    override fun sendToMultiview() {
+        val w = web ?: return
+        if (browser.privateMode) return playInMessage(R.string.multiview_video_private)
+        val now = SystemClock.uptimeMillis()
+        if (playInSince != 0L && now - playInSince < PLAY_IN_BUSY_MS) return
+        playInSince = now
+        val started = collectSources { video ->
+            val userAgent = w.settings.userAgentString.orEmpty()
+            val cookies = WebViews.cookieManager(w)
+            if (video == null) return@collectSources playInMessage(R.string.no_video)
+            if (video.protected) return@collectSources playInMessage(R.string.handover_drm)
+            val direct = video.src.takeIf(Browser::isWebUrl)
+            if (direct != null) return@collectSources toMultiview(direct, video.page, media = true, userAgent)
+            val candidates = browser.streams.candidates()
+            browser.fetchInPage(StreamResolver.manifestsToRead(candidates), PAGE_FETCH_MS) { fromPage ->
+                thread(name = "to-multiview") {
+                    val resolved = if (candidates.isEmpty()) null
+                        else StreamResolver(userAgent, cookies::getCookie, ::streamLog).resolve(candidates, fromPage, checkOutside = false)
+                    runOnUiThread {
+                        if (isDestroyed) return@runOnUiThread
+                        // A file only the page's requests mention (not its video's own address) may be an ad.
+                        if (resolved == null || resolved.kind == StreamResolver.Kind.FILE) playInMessage(R.string.multiview_video_no_stream)
+                        else toMultiview(resolved.url, resolved.frame ?: video.page, media = false, userAgent)
+                    }
+                }
+            }
+        }
+        if (!started) playInSince = 0L
+    }
+
+    private fun toMultiview(stream: String, frame: String?, media: Boolean, userAgent: String) {
+        playInSince = 0L
+        streamLog("Send to Multiview: $stream (frame $frame)")
+        command("pause")
+        app.sofabrowser.multiview.MultiviewInbox.put(
+            app.sofabrowser.multiview.MultiviewInbox.Handoff(stream, video = true, frame = frame, media = media, userAgent = userAgent))
+        startActivity(Intent(this, app.sofabrowser.multiview.MultiviewActivity::class.java))
     }
 
     private var sourcesWanted: ((VideoSource?) -> Unit)? = null
