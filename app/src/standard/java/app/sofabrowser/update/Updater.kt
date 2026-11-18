@@ -167,7 +167,7 @@ object Updater {
     /** Downloads the release APK into the cache and checks it is complete, intact, newer and signed like this copy. */
     private fun fetchApk(context: Context, release: Release, cancelled: AtomicBoolean, progress: (Long, Long) -> Unit): File {
         val dir = File(context.cacheDir, "update").apply { deleteRecursively(); mkdirs() }
-        val file = File(dir, "sofa-${release.version}.apk")
+        val file = File(dir, "sfm-${release.version}.apk")
         val conn = URL(release.apk.url).openConnection() as HttpURLConnection
         conn.connectTimeout = 15_000
         conn.readTimeout = 30_000

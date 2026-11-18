@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Builds, checks and publishes a fork release. Run from the repository root:
+# Builds, checks and publishes an SFM release. Run from the repository root:
 #
-#   tools/release.sh 1.2.4-tvcouch.2 [--dry-run]
+#   tools/release.sh 1.2.4-sfm.2 [--dry-run]
 #
 # Before running it, write the release's text in two places (the script stops if either is missing):
 #   - CHANGELOG.md: a "## <version> (<date>)" section at the top; it becomes the GitHub release notes.
@@ -12,10 +12,10 @@
 # tags, pushes and publishes the GitHub release with the APK and its SHA-256. --dry-run stops before the commit, puts
 # app/build.gradle.kts back as it was, and leaves the APK and release notes in build/release/ to look at.
 #
-# versionCode is (MAJOR * 10000 + MINOR * 100 + PATCH) * 100 + fork release: 1.2.4-tvcouch.2 is 1020402.
+# versionCode is (MAJOR * 10000 + MINOR * 100 + PATCH) * 100 + SFM release: 1.2.4-sfm.2 is 1020402.
 set -euo pipefail
 
-FORK_TAG=tvcouch
+FORK_TAG=sfm
 UPSTREAM=https://github.com/sonalder-darlene/sofa-tv-browser
 GRADLE=app/build.gradle.kts
 
@@ -83,7 +83,7 @@ step "Checking the APK"
 apk=app/build/outputs/apk/standard/release/app-standard-release.apk
 badging=$("${tools}aapt2" dump badging "$apk")
 grep -q "versionCode='$code' versionName='$version'" <<< "$badging" || die "the APK doesn't carry version $version ($code)"
-grep -q "application-label:'Sofa (fork)'" <<< "$badging" || die "the APK isn't labelled 'Sofa (fork)'"
+grep -q "application-label:'SFM'" <<< "$badging" || die "the APK isn't labelled 'SFM'"
 buildconfig=app/build/generated/source/buildConfig/standard/release/app/sofabrowser/BuildConfig.java
 expected_cert=$(sed -nE 's/.*RELEASE_CERT_SHA256 = "([0-9a-f]{64})".*/\1/p' "$buildconfig")
 # One signer only, and it must be the release key ("Signer #1" or "V2 Signer", depending on the build-tools).
@@ -95,19 +95,19 @@ grep -q "UPDATE_URL = \"https://api.github.com/repos/$repo/releases/latest\"" "$
 
 out=build/release
 rm -rf "$out" && mkdir -p "$out"
-name=sofa-$version.apk
+name=sfm-$version.apk
 cp "$apk" "$out/$name"
 (cd "$out" && sha256sum "$name" > "$name.sha256")
 sha=$(cut -d' ' -f1 "$out/$name.sha256")
 
 cat > "$out/notes.md" <<EOF
-> **Unofficial fork.** This is not the official [Sofa TV Browser]($UPSTREAM) and is not made or supported by Sofa's developer. Report problems with it [in this fork](https://github.com/$repo/issues).
+> **Unofficial fork.** SFM is not the official [Sofa TV Browser]($UPSTREAM) and is not made or supported by Sofa's developer. Report problems with it [here](https://github.com/$repo/issues).
 
-Sofa TV Browser with features from [TVCouchBrowser](https://github.com/crash101g/tvcouchbrowser). See [FORK.md](https://github.com/$repo/blob/main/FORK.md).
+SFM is the Sofa TV Browser fork (with [TVCouchBrowser](https://github.com/crash101g/tvcouchbrowser) features) plus **Multiview**: up to four web pages, streams and IP cameras on one TV screen. See [SFM.md](https://github.com/$repo/blob/main/SFM.md).
 
 $notes_section
 
-**Install:** \`adb install $name\`, or use a file manager on the TV. Copies of this fork with update checks on offer it by themselves. This build is signed with the fork's own key and keeps Sofa's app id, so uninstall any official Sofa first (its data goes with it).
+**Install:** \`adb install $name\`, or use a file manager on the TV. SFM has its own app id (\`app.sofabrowser.sfm\`), so it installs beside Sofa and the Sofa fork, with data of its own. Copies with update checks on offer later SFM releases by themselves.
 EOF
 
 if $dry; then
@@ -121,12 +121,12 @@ fi
 step "Committing, tagging and pushing $tag"
 rm -f "$GRADLE.release-backup"
 git add $GRADLE CHANGELOG.md "$changelog"
-git commit -q -m "Sofa TV Browser $version" -m "Version $version ($code), with the CHANGELOG and the store changelog."
-git tag -a "$tag" -m "Sofa TV Browser $version"
+git commit -q -m "SFM $version" -m "Version $version ($code), with the CHANGELOG and the store changelog."
+git tag -a "$tag" -m "SFM $version"
 git push -q origin main "$tag"
 
 step "Publishing the GitHub release"
-gh release create "$tag" -R "$repo" --title "Sofa TV Browser $version (fork)" --notes-file "$out/notes.md" --latest \
+gh release create "$tag" -R "$repo" --title "SFM $version" --notes-file "$out/notes.md" --latest \
     "$out/$name" "$out/$name.sha256"
 served=$(gh api "repos/$repo/releases/tags/$tag" -q ".assets[] | select(.name == \"$name\") | .digest")
 [[ $served == "sha256:$sha" ]] || die "GitHub serves $name with digest '$served', not sha256:$sha; check the release"

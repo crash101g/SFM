@@ -11,7 +11,7 @@ object Releases {
 
     /**
      * Whether [candidate] is a later version than [current]; missing parts count as 0, so 1.1 equals 1.1.0. On the same
-     * Sofa version, the fork's own release number decides: 1.2.4-tvcouch.2 is newer than 1.2.4-tvcouch.1, which is newer
+     * Sofa version, the fork's own release number decides: 1.2.4-sfm.2 is newer than 1.2.4-sfm.1, which is newer
      * than plain 1.2.4.
      */
     fun isNewer(candidate: String, current: String): Boolean {
@@ -26,17 +26,17 @@ object Releases {
         return forkRelease(candidate) > forkRelease(current)
     }
 
-    /** The fork's release number on top of a Sofa version: 2 for "1.2.4-tvcouch.2", 0 without one. */
+    /** The fork's release number on top of a Sofa version: 2 for "1.2.4-sfm.2", 0 without one. */
     fun forkRelease(version: String): Int =
         Regex("""-$FORK_TAG\.(\d+)""").find(version)?.groupValues?.get(1)?.toIntOrNull() ?: 0
 
-    /** The suffix fork releases carry after Sofa's own version. */
-    const val FORK_TAG = "tvcouch"
+    /** The suffix SFM releases carry after Sofa's own version ("tvcouch" in the Sofa fork SFM comes from). */
+    const val FORK_TAG = "sfm"
 
-    /** The release's APK: "sofa-<version>.apk" when attached, otherwise the only APK there is. */
+    /** The release's APK: "sfm-<version>.apk" when attached, otherwise the only APK there is. */
     fun pickApk(assets: List<Asset>, version: String): Asset? {
         val apks = assets.filter { it.name.endsWith(".apk", ignoreCase = true) }
-        return apks.firstOrNull { it.name.equals("sofa-$version.apk", ignoreCase = true) } ?: apks.singleOrNull()
+        return apks.firstOrNull { it.name.equals("sfm-$version.apk", ignoreCase = true) } ?: apks.singleOrNull()
     }
 
     /** GitHub's "sha256:<hex>" asset digest as lowercase hex; null when missing or of another kind. */
