@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="multiview_label">SFM Multiview</string>
+    <string name="multiview_empty">Multiview plays up to four feeds at once: web pages, streams and IP cameras.\n\nPress OK to add feeds.</string>
+    <string name="multiview_connecting">Connecting…</string>
+    <string name="multiview_reconnecting">Lost the feed. Trying again in %1$d s…</string>
+    <string name="multiview_page_stopped">The page stopped. Starting it again…</string>
+    <string name="multiview_login_rejected">Login rejected (401).\nCheck the camera\'s username and password in Edit feeds.\nSFM won\'t retry it by itself.</string>
+    <string name="multiview_forbidden">Access refused (403).\nSFM won\'t retry it by itself.</string>
+    <string name="multiview_cert_changed">The camera\'s certificate has changed, so SFM stopped.\nIf you changed it yourself, edit the feed to trust the new one.</string>
+    <string name="multiview_camera_untrusted">This camera\'s certificate hasn\'t been trusted yet. Edit the feed to check it.</string>
+
+    <string name="multiview_menu_audio">Sound from this feed</string>
+    <string name="multiview_menu_solo">Full screen</string>
+    <string name="multiview_menu_grid">Back to the grid</string>
+    <string name="multiview_menu_reload">Reload this feed</string>
+    <string name="multiview_menu_reload_all">Reload all feeds</string>
+    <string name="multiview_menu_tap">Press play in this page</string>
+    <string name="multiview_menu_mute">Mute all</string>
+    <string name="multiview_menu_titles">Show or hide titles</string>
+    <string name="multiview_menu_edit">Edit feeds</string>
+
+    <string name="multiview_edit_title">Feeds</string>
+    <string name="multiview_slot_empty">Feed %1$d: (empty)</string>
+    <string name="multiview_slot">Feed %1$d: %2$s</string>
+    <string name="multiview_feed_title">Feed %1$d</string>
+    <string name="multiview_feed_hint">https://… a page, a stream, an &lt;iframe&gt; tag, or https://user:password@camera/…</string>
+    <string name="multiview_save">Save</string>
+    <string name="multiview_remove">Remove</string>
+    <string name="multiview_cancel">Cancel</string>
+    <string name="multiview_done">Done</string>
+    <string name="multiview_checking_camera">Reading the camera\'s certificate…</string>
+    <string name="multiview_trust_title">Trust this camera?</string>
+    <string name="multiview_trust_message">%1$s presents this certificate (SHA-256):\n\n%2$s\n\nCompare it with the one in the camera\'s own settings. SFM will send the login to this camera only while it presents exactly this certificate.</string>
+    <string name="multiview_trust">Trust</string>
+    <string name="multiview_probe_failed">Couldn\'t read the camera\'s certificate: %1$s</string>
+
+    <string name="multiview_error_empty">Type an address.</string>
+    <string name="multiview_error_not_http">Only http and https addresses play in Multiview.</string>
+    <string name="multiview_error_no_host">That address has no host.</string>
+    <string name="multiview_error_login_https">Camera logins are only sent over https.</string>
+    <string name="multiview_error_camera_https">Cameras on the home network have to use https.</string>
+    <string name="multiview_error_bad_url">That isn\'t an address SFM can read.</string>
+</resources>

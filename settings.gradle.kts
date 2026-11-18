@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "sofa-tv-browser"
+rootProject.name = "SFM"
 include(":app")

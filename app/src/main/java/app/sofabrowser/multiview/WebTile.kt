@@ -1,0 +1,196 @@
+package app.sofabrowser.multiview
+
+import android.annotation.SuppressLint
+import android.content.Context
+import android.graphics.Bitmap
+import android.net.Uri
+import android.os.Message
+import android.os.SystemClock
+import android.view.MotionEvent
+import android.webkit.PermissionRequest
+import android.webkit.RenderProcessGoneDetail
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import app.sofabrowser.Prefs
+import app.sofabrowser.R
+import app.sofabrowser.adblock.AdBlocker
+import app.sofabrowser.browser.WebViews
+
+/**
+ * A web page or embed player. What it may do is narrower than Sofa's browser tab:
+ *
+ * - **Navigation lock** ([NavigationLock]): the feed stays on its own site; pages can't send it anywhere else.
+ * - **No pop-ups**: every new window is refused, and nothing opens other apps (intent:, market: …).
+ * - **WebRTC off** ([PageScripts.NO_WEBRTC]), and every camera, microphone or other permission request is denied.
+ * - **Ad blocking**: Sofa's filter lists on every request of every frame.
+ * - No file or content access, no geolocation, no mixed content (as Sofa's [WebViews.configure] sets them), and HTTP
+ *   logins asked for by a page are cancelled, never retried.
+ */
+@SuppressLint("ViewConstructor")
+class WebTile(context: Context, index: Int, feed: Feed) : Tile(context, index, feed) {
+
+    private val blocker = AdBlocker.get(context)
+    private val lock = NavigationLock(feed.url)
+    private var web: WebView? = null
+    @Volatile private var pageUrl: String? = feed.url
+    @Volatile private var pageHost: String? = feed.host
+    private var scriptsAtStart = false
+
+    override fun start() {
+        if (web == null) build()
+        lock.reset(feed.url)
+        web?.loadUrl(feed.url)
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun build() {
+        // As in Sofa's browser: test builds only, so pages can be inspected from a computer over adb.
+        if (app.sofabrowser.BuildConfig.DEBUG) WebView.setWebContentsDebuggingEnabled(true)
+        val w = WebView(context)
+        WebViews.configure(w, Prefs(context))
+        w.settings.javaScriptEnabled = true
+        w.settings.mediaPlaybackRequiresUserGesture = false
+        w.settings.setSupportMultipleWindows(true)
+        w.settings.javaScriptCanOpenWindowsAutomatically = false
+        w.settings.allowFileAccess = false
+        w.settings.allowContentAccess = false
+        w.isFocusable = false
+        w.isFocusableInTouchMode = false
+        w.setBackgroundColor(android.graphics.Color.BLACK)
+        scriptsAtStart = WebViews.addDocumentStartScript(w, PageScripts.NO_WEBRTC) &&
+            WebViews.addDocumentStartScript(w, PageScripts.MUTE)
+        w.webViewClient = Client()
+        w.webChromeClient = Chrome()
+        if (web == null) setContent(w) else replaceContent(w)
+        web = w
+        applyAudio(audible)
+    }
+
+    override fun reload() {
+        showStatus(null)
+        val w = web ?: return start()
+        lock.reset(feed.url)
+        w.stopLoading()
+        w.loadUrl(feed.url)
+    }
+
+    override fun release() {
+        main.removeCallbacksAndMessages(null)
+        web?.let {
+            it.stopLoading()
+            it.loadUrl("about:blank")
+            (it.parent as? android.view.ViewGroup)?.removeView(it)
+            it.destroy()
+        }
+        web = null
+    }
+
+    override fun applyAudio(on: Boolean) {
+        web?.evaluateJavascript(PageScripts.setMuted(!on), null)
+    }
+
+    override fun tap() {
+        val w = web ?: return
+        val x = w.width / 2f
+        val y = w.height / 2f
+        val t = SystemClock.uptimeMillis()
+        listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP).forEachIndexed { i, action ->
+            val e = MotionEvent.obtain(t, t + i * 50, action, x, y, 0)
+            e.source = android.view.InputDevice.SOURCE_TOUCHSCREEN
+            w.dispatchTouchEvent(e)
+            e.recycle()
+        }
+    }
+
+    private inner class Client : WebViewClient() {
+
+        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+            val url = request.url.toString()
+            val scheme = request.url.scheme?.lowercase()
+            if (scheme != "http" && scheme != "https") return true
+            if (!request.isForMainFrame) return false
+            if (lock.allows(url, request.isRedirect)) return false
+            blocker.countBlocked()
+            return true
+        }
+
+        override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+            pageUrl = url
+            pageHost = Uri.parse(url).host
+            if (!scriptsAtStart) {
+                // Older WebViews: no document-start scripts, so the top frame gets them as early as it can.
+                view.evaluateJavascript(PageScripts.NO_WEBRTC, null)
+                view.evaluateJavascript(PageScripts.MUTE, null)
+            }
+            view.evaluateJavascript(PageScripts.setMuted(!audible), null)
+        }
+
+        override fun onPageFinished(view: WebView, url: String) {
+            if (url != "about:blank") lock.pageFinished()
+            if (!scriptsAtStart) view.evaluateJavascript(PageScripts.MUTE, null)
+            view.evaluateJavascript(PageScripts.setMuted(!audible), null)
+        }
+
+        override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
+            blocker.intercept(request, pageUrl, pageHost)
+
+        override fun onReceivedHttpAuthRequest(view: WebView, handler: android.webkit.HttpAuthHandler, host: String, realm: String) {
+            // Pages don't get a login prompt, and a login isn't retried.
+            handler.cancel()
+        }
+
+        override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+            // With several pages on a TV the system may stop a renderer to free memory. Without this the whole app
+            // would go down with it; instead this tile starts over after a moment.
+            if (view !== web) return true
+            (view.parent as? android.view.ViewGroup)?.removeView(view)
+            view.destroy()
+            web = null
+            showStatus(context.getString(R.string.multiview_page_stopped))
+            main.postDelayed({
+                showStatus(null)
+                build()
+                start()
+            }, 3_000)
+            return true
+        }
+    }
+
+    private inner class Chrome : WebChromeClient() {
+        override fun onCreateWindow(view: WebView, isDialog: Boolean, isUserGesture: Boolean, resultMsg: Message): Boolean {
+            blocker.countBlocked()
+            return false
+        }
+
+        override fun onPermissionRequest(request: PermissionRequest) {
+            request.deny()
+        }
+
+        override fun onGeolocationPermissionsShowPrompt(origin: String, callback: android.webkit.GeolocationPermissions.Callback) {
+            callback.invoke(origin, false, false)
+        }
+
+        override fun onJsAlert(view: WebView, url: String, message: String, result: android.webkit.JsResult): Boolean {
+            result.cancel()
+            return true
+        }
+
+        override fun onJsConfirm(view: WebView, url: String, message: String, result: android.webkit.JsResult): Boolean {
+            result.cancel()
+            return true
+        }
+
+        override fun onJsPrompt(view: WebView, url: String, message: String, defaultValue: String?, result: android.webkit.JsPromptResult): Boolean {
+            result.cancel()
+            return true
+        }
+
+        override fun onJsBeforeUnload(view: WebView, url: String, message: String, result: android.webkit.JsResult): Boolean {
+            result.confirm()
+            return true
+        }
+    }
+}

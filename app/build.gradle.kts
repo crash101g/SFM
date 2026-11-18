@@ -25,7 +25,7 @@ if (!hasReleaseKey) logger.lifecycle("Sofa: no release key configured; release b
 
 /** Where the standard build looks for updates; -Psofa.updateUrl=… points a test build (or a fork) elsewhere. */
 val updateUrl: String = providers.gradleProperty("sofa.updateUrl")
-    .getOrElse("https://api.github.com/repos/crash101g/sofa-tv-browser/releases/latest")
+    .getOrElse("https://api.github.com/repos/crash101g/SFM/releases/latest")
 /** SHA-256 of the release certificate: only copies signed with it are offered updates, since only they can take one. */
 val releaseCert: String = providers.gradleProperty("sofa.releaseCert")
     .getOrElse("4c5fd507719f59f112ebdf10c84ebd353a6fea95427ffec798be8ba7c961f9dd")
@@ -44,7 +44,8 @@ android {
     buildToolsVersion = "36.1.0"
 
     defaultConfig {
-        applicationId = "app.sofabrowser"
+        // SFM installs beside Sofa and the Sofa fork, with data of its own.
+        applicationId = "app.sofabrowser.sfm"
         minSdk = 24
         targetSdk = 36
         // Fork releases: (MAJOR * 10000 + MINOR * 100 + PATCH) * 100 + fork release, so 1.2.4-tvcouch.2 is 1020402

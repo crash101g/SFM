@@ -1,3 +1,5 @@
+> **This is SFM**: the Sofa fork below plus **Multiview**, up to four web pages, streams and IP cameras on one TV screen. See [SFM.md](SFM.md) for what it adds and its security design.
+
 # Sofa TV Browser + TVCouchBrowser features
 
 > **This is a fork of [Sofa TV Browser](https://github.com/sonalder-darlene/sofa-tv-browser)** by sonalder-darlene,

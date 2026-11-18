@@ -83,6 +83,19 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
+        <!-- SFM Multiview: its own launcher entry. Exported for the launcher, so it ignores the starting intent's data. -->
+        <activity
+            android:name=".multiview.MultiviewActivity"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|smallestScreenSize|uiMode|density"
+            android:exported="true"
+            android:label="@string/multiview_label"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustPan">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity>
         <activity
             android:name=".ui.SearchActivity"
             android:exported="false"
