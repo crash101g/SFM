@@ -137,6 +137,27 @@ and pull request. The APK is attached to the run as an artifact.
 
 - A video whose stream works only inside its page (the site checks something besides headers and cookies) won't
   play in a tile; add the page instead.
-- No RTSP: cameras must offer an https stream (HLS, DASH or progressive) that ExoPlayer plays.
+- No RTSP: cameras must offer an https stream (HLS, DASH or progressive) that ExoPlayer plays. RTSPS is planned; see
+  below.
 - No auto-reload of web feeds that never start playing (the desktop app's `auto_reload`); use Reload.
 - No cosmetic filtering (element hiding) in web tiles, only network blocking.
+
+## Planned: RTSPS cameras (Wyze)
+
+A future feature, not started. Wyze cameras offer only RTSP (with the Wyze RTSP firmware), TLS-only on port 322, so
+today they can't be added. The desktop multiview already plays them. Rules it must keep, so it doesn't weaken the
+design above:
+
+- **`rtsps://` only, never plain `rtsp://`.** A camera login over unencrypted RTSP would cross the network in the
+  clear, which the http(s)-only rule exists to prevent. As in the desktop app, an `rtsp://…:322` address (what the Wyze
+  app shows) becomes `rtsps://`; any other `rtsp://` is refused.
+- **Pinned like the https cameras:** the trust-on-first-use certificate prompt on the TV, the same `PinnedTls`
+  check before any login is sent, and a stop if the certificate changes.
+- **No retry on 401/403**, by the player or the tile, as `Reconnect.stopFor` does now.
+- **Logins** come from the TV's Username/Password fields and stay encrypted in `FeedStore`; never from the phone.
+- **One more scheme, nothing else:** `Feed.parse` gains `rtsps` for camera feeds only (not web or browser videos), and
+  the unit tests cover it.
+
+To check first: Media3's RTSP module (`media3-exoplayer-rtsp`) must play RTSP over TLS and accept a custom socket
+factory for the pin. If it can't, SFM needs a small RTSPS client of its own, or the camera's stream relayed as https.
+
