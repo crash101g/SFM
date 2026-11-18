@@ -34,14 +34,15 @@ import java.util.concurrent.Executors
  * The phone as a remote, keyboard and trackpad (ported from TVCouchBrowser, MIT, crash101g). The phone scans a QR code
  * and opens a page that Sofa serves on the home network ([PhoneServer]); nothing is installed on the phone.
  *
- * Off until the QR code is first shown, and running only while Sofa's browser screen is started. On the page itself the
+ * Off until the QR code is first shown, and running only while the browser or Multiview is started. On the page itself the
  * trackpad drives Sofa's pointer ([CursorLayout]); anywhere else (the home screen, the menu, dialogs, fullscreen video)
  * its moves work as D-pad arrows and a tap as OK, so the phone can go wherever the remote can.
  */
 class PhoneRemote(private val activity: Activity, private val host: Host) : PhoneServer.Actions {
 
     interface Host {
-        val cursor: CursorLayout
+        /** Sofa's pointer; null on screens without one (Multiview), where the trackpad is always a D-pad. */
+        val cursor: CursorLayout?
         val web: WebView?
         /** The page is what is on screen and has the keys: no home screen, menu, dialog or fullscreen video over it. */
         fun pageInFront(): Boolean
@@ -51,29 +52,32 @@ class PhoneRemote(private val activity: Activity, private val host: Host) : Phon
         /** Removes the element under the pointer and remembers it for the site. */
         fun removeAtPointer()
         fun cleanUp()
+        /**
+         * Takes what the phone's "Open" sent as it is, before Sofa turns it into an address or a search; null leaves it to
+         * [openFromPhone]. Called on a server thread.
+         */
+        fun openRawFromPhone(input: String): Boolean? = null
+        /** See [PhoneServer.Actions.feeds]; called on a server thread. */
+        fun feeds(): List<String?>? = null
+        /** See [PhoneServer.Actions.setFeed]; called on a server thread. */
+        fun setFeed(slot: Int, input: String): PhoneServer.FeedReply = PhoneServer.FeedReply.NOT_MULTIVIEW
     }
 
     private val app = activity.applicationContext
-    val tokens by lazy { TokenStore(app) }
-    private val serverHolder = lazy { PhoneServer(app, tokens, this) }
-    private val server by serverHolder
+    val tokens: TokenStore get() = PhoneHub.tokens(app)
     private val main = Handler(Looper.getMainLooper())
     /** Key injection waits for the key to be handled, so it runs off the main thread. */
     private val injector = Executors.newSingleThreadExecutor { r -> Thread(r, "phone-keys") }
     private val instrumentation = Instrumentation()
 
-    @Volatile private var started = false
-
-    /** From the activity's onStart. */
+    /** From the activity's onStart: this screen takes the phone's commands (the server is shared, see [PhoneHub]). */
     fun start() {
-        started = true
-        if (tokens.enabled) server.start()
+        PhoneHub.attach(app, this)
     }
 
     /** From the activity's onStop. */
     fun stop() {
-        started = false
-        if (tokens.enabled) server.stop()
+        PhoneHub.detach(this)
     }
 
     // Pairing
@@ -86,11 +90,11 @@ class PhoneRemote(private val activity: Activity, private val host: Host) : Phon
 
     /** Shows the QR code to scan, turning the phone page on. */
     fun pairDialog() {
-        if (!tokens.enabled) tokens.enabled = true
-        if (started) server.start()
+        PhoneHub.enable(app)
+        val port = PhoneHub.port(app)
         val ip = lanAddress()
-        if (ip == null || server.port == 0) { toast(activity.getString(R.string.phone_no_network)); return }
-        val url = "http://$ip:${server.port}/?t=${tokens.token}"
+        if (ip == null || port == 0) { toast(activity.getString(R.string.phone_no_network)); return }
+        val url = "http://$ip:$port/?t=${tokens.token}"
         val size = 440.px
         val matrix = QRCodeWriter().encode(url, BarcodeFormat.QR_CODE, size, size, mapOf(EncodeHintType.MARGIN to 2))
         val pixels = IntArray(size * size) { i -> if (matrix[i % size, i / size]) Color.BLACK else Color.WHITE }
@@ -101,7 +105,7 @@ class PhoneRemote(private val activity: Activity, private val host: Host) : Phon
             setPadding(48.px, 32.px, 48.px, 16.px)
             addView(ImageView(context).apply { setImageBitmap(bmp) }, LinearLayout.LayoutParams(size, size))
             addView(TextView(context).apply {
-                text = activity.getString(R.string.phone_pair_text, "http://$ip:${server.port}/open?t=${tokens.token}")
+                text = activity.getString(R.string.phone_pair_text, "http://$ip:$port/open?t=${tokens.token}")
                 setTextColor(Ui.p.text)
                 setTextSize(TypedValue.COMPLEX_UNIT_PX, 28.px.toFloat())
                 setPadding(48.px, 0, 0, 0)
@@ -115,15 +119,14 @@ class PhoneRemote(private val activity: Activity, private val host: Host) : Phon
 
     /** A new token, so old QR codes and Shortcuts stop working, and the phone page off until paired again. */
     fun forget() {
-        server.stop()
-        tokens.rotate()
-        tokens.enabled = false
+        PhoneHub.forget(app)
         toast(activity.getString(R.string.phone_forgotten))
     }
 
     // PhoneServer.Actions: called on server threads.
 
     override fun openUrl(input: String): Boolean {
+        host.openRawFromPhone(input)?.let { return it }
         val url = UrlInput.resolve(input, Prefs(app).searchEngine)
         if (!Browser.isWebUrl(url)) return false
         main.post { host.openFromPhone(url) }
@@ -165,13 +168,13 @@ class PhoneRemote(private val activity: Activity, private val host: Host) : Phon
                     web.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, code))
                 }
                 // A phone arrow on the page moves the pointer a fixed step, which a quick injected press would not.
-                onPage && host.cursor.cursorEnabled && code in ARROWS -> {
+                onPage && host.cursor?.cursorEnabled == true && code in ARROWS -> {
                     val step = 40f * Ui.scale
                     when (code) {
-                        KeyEvent.KEYCODE_DPAD_UP -> host.cursor.padMove(0f, -step)
-                        KeyEvent.KEYCODE_DPAD_DOWN -> host.cursor.padMove(0f, step)
-                        KeyEvent.KEYCODE_DPAD_LEFT -> host.cursor.padMove(-step, 0f)
-                        else -> host.cursor.padMove(step, 0f)
+                        KeyEvent.KEYCODE_DPAD_UP -> host.cursor!!.padMove(0f, -step)
+                        KeyEvent.KEYCODE_DPAD_DOWN -> host.cursor!!.padMove(0f, step)
+                        KeyEvent.KEYCODE_DPAD_LEFT -> host.cursor!!.padMove(-step, 0f)
+                        else -> host.cursor!!.padMove(step, 0f)
                     }
                 }
                 else -> injectKey(code)
@@ -185,8 +188,12 @@ class PhoneRemote(private val activity: Activity, private val host: Host) : Phon
     }
 
     override fun pointerDisconnected() {
-        main.post { host.cursor.padRelease() }
+        main.post { host.cursor?.padRelease() }
     }
+
+    override fun feeds(): List<String?>? = host.feeds()
+
+    override fun setFeed(slot: Int, input: String): PhoneServer.FeedReply = host.setFeed(slot, input)
 
     override fun pointer(cmd: PointerProtocol.Command) {
         main.post { onPointer(cmd) }
@@ -196,8 +203,8 @@ class PhoneRemote(private val activity: Activity, private val host: Host) : Phon
     private var keyY = 0f
 
     private fun onPointer(cmd: PointerProtocol.Command) {
-        if (!host.pageInFront()) { offPage(cmd); return }
         val c = host.cursor
+        if (c == null || !host.pageInFront()) { offPage(cmd); return }
         val u = Ui.scale
         when (cmd.op) {
             'm' -> c.padMove(cmd.a * u * PAD_GAIN, cmd.b * u * PAD_GAIN)
@@ -225,7 +232,7 @@ class PhoneRemote(private val activity: Activity, private val host: Host) : Phon
                 while (keyX <= -KEY_STEP) { keyX += KEY_STEP; injectKey(KeyEvent.KEYCODE_DPAD_LEFT) }
             }
             'c' -> injectKey(KeyEvent.KEYCODE_DPAD_CENTER)
-            'u' -> host.cursor.padRelease()
+            'u' -> host.cursor?.padRelease()
         }
     }
 
@@ -244,7 +251,7 @@ class PhoneRemote(private val activity: Activity, private val host: Host) : Phon
     private fun toast(text: String) = Toast.makeText(app, text, Toast.LENGTH_SHORT).show()
 
     fun destroy() {
-        if (serverHolder.isInitialized()) server.stop()
+        PhoneHub.detach(this)
         injector.shutdownNow()
     }
 

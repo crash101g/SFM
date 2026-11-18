@@ -31,6 +31,17 @@ One feed fills the screen, two sit side by side, three or four make a 2×2 grid.
 | 1–4 / 0 | Sound to feed 1–4 / mute all |
 | Back | Leave full screen, then Multiview |
 
+### From the phone
+
+The phone remote works in Multiview too. Pair it from **Edit feeds → Phone remote** (or Menu → **Phone remote**), or
+from the browser's **Phone** menu: it is one pairing for the whole app. While Multiview is on the TV, the phone page
+shows a **Multiview feeds** section: the four slots (labels only), **Send to TV** with a slot or "first empty", and ✕
+to remove a feed. The page's own **Open** box, and the iPhone "Send to TV" Shortcut, add to the first empty slot, or
+ask on the TV which feed to replace. The phone's remote and trackpad move around Multiview like the D-pad.
+
+Camera logins are typed on the TV: **Edit feeds** has Username and Password fields (an empty password keeps the saved
+one).
+
 Web feeds start 3 s apart, since many stream sites fail when several players start at once. Nothing plays once you
 leave Multiview: the players and pages are released in `onStop`.
 
@@ -75,6 +86,19 @@ minute. Web pages asking for an HTTP login are cancelled.
 phone-pairing token is. On TVs whose keystore fails it stays in app-private storage unencrypted, as the token does.
 Labels show `user@host`, never the password, and the login is kept out of the feed URL entirely.
 
+**The phone link.** It is plain http on the home network, with the fork's protections (128-bit token, same-subnet
+private addresses only, lock-out after 5 wrong tokens). So:
+
+- A feed with a login in it is refused by the TV (`Feed.parseFromPhone`, reply `login`) before anything is stored.
+  Logins are typed on the TV, and only ever go to the camera over pinned TLS.
+- A phone-sent feed passes the same checks as a typed one (http(s) only and the rest).
+- A phone can't trust a camera certificate. A camera sent from the phone gets the reply `confirm`, and the trust
+  prompt appears on the TV.
+- `GET /feeds` returns labels only (`user@host`), never addresses with secrets, passwords or pins.
+- Feeds can be changed only while Multiview is in front (otherwise `409 not_multiview`).
+- One server and token serve the whole app (`PhoneHub`). Commands go to the screen in front, and the server stops
+  when neither the browser nor Multiview is started.
+
 **Starting it.** The activity is exported for the launcher (and `adb shell am start`), so it ignores the intent's data
 and extras. Another app can't hand it a feed.
 
@@ -94,8 +118,7 @@ and pull request. The APK is attached to the run as an artifact.
 
 ## Not done yet
 
-- Feeds are typed with the TV keyboard. Sending them from the phone remote, or "Add to Multiview" from the browser
-  menu, would be easier.
+- No "Add to Multiview" in the browser's menu yet.
 - No RTSP: cameras must offer an https stream (HLS, DASH or progressive) that ExoPlayer plays.
 - No auto-reload of web feeds that never start playing (the desktop app's `auto_reload`); use Reload.
 - No cosmetic filtering (element hiding) in web tiles, only network blocking.

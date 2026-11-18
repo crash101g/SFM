@@ -41,6 +41,22 @@ class PhoneServer(
         fun pointerConnected()
         /** The trackpad connection closed; release anything it was holding down. */
         fun pointerDisconnected()
+        /** The Multiview feed labels (null for an empty slot), or null when Multiview isn't what's on the TV. */
+        fun feeds(): List<String?>? = null
+        /** Puts [input] in Multiview feed [slot] (0–3), or empties it when [input] is blank. */
+        fun setFeed(slot: Int, input: String): FeedReply = FeedReply.NOT_MULTIVIEW
+    }
+
+    /** What the TV made of a feed sent from the phone; [code] is what the phone page reads. */
+    enum class FeedReply(val code: String, val status: Int) {
+        OK("ok", 200),
+        /** A camera: the TV shows its certificate, and only someone at the TV can trust it. */
+        CONFIRM_ON_TV("confirm", 200),
+        NOT_MULTIVIEW("not_multiview", 409),
+        BAD_SLOT("bad_slot", 400),
+        LOGIN_OVER_PHONE("login", 422),
+        NOT_HTTP("not_http", 422),
+        INVALID("invalid", 422),
     }
 
     private var server: ServerSocket? = null
@@ -150,6 +166,22 @@ class PhoneServer(
                 actions.type(text); respondJson(s, true)
             }
             req.method == "POST" && req.path == "/key" -> respondJson(s, actions.key(req.query["k"] ?: ""))
+            req.method == "GET" && req.path == "/feeds" -> {
+                val feeds = actions.feeds()
+                val json = JSONObject().put("multiview", feeds != null)
+                if (feeds != null) json.put("feeds", org.json.JSONArray(feeds.map { it ?: JSONObject.NULL }))
+                respond(s, 200, "application/json", json.toString())
+            }
+            req.method == "POST" && req.path == "/feed" -> {
+                val slot = req.query["slot"]?.toIntOrNull()?.minus(1)
+                val url = extract(req.body, "url")
+                val reply = when {
+                    url.length > 4096 -> FeedReply.INVALID
+                    slot == null -> FeedReply.BAD_SLOT
+                    else -> actions.setFeed(slot, url.trim())
+                }
+                respond(s, reply.status, "application/json", JSONObject().put("ok", reply.status == 200).put("result", reply.code).toString())
+            }
             else -> respond(s, 404, "text/plain", "Not found")
         }
     }
@@ -297,7 +329,7 @@ class PhoneServer(
         val bytes = body.toByteArray()
         // The phone page may open its trackpad socket back to this server, and nowhere else.
         val connect = wsHost?.takeIf { HOST_HEADER.matches(it) }?.let { "; connect-src 'self' ws://$it" } ?: ""
-        val reason = when (code) { 200 -> "OK"; 400 -> "Bad Request"; 403 -> "Forbidden"; 404 -> "Not Found"; 422 -> "Unprocessable"; else -> "Too Many Requests" }
+        val reason = when (code) { 200 -> "OK"; 400 -> "Bad Request"; 403 -> "Forbidden"; 404 -> "Not Found"; 422 -> "Unprocessable"; 409 -> "Conflict"; else -> "Too Many Requests" }
         val head = "HTTP/1.1 $code $reason\r\nContent-Type: $type\r\nContent-Length: ${bytes.size}\r\n" +
             "Cache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nX-Content-Type-Options: nosniff\r\n" +
             "Content-Security-Policy: default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'$connect\r\n" +

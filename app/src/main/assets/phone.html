@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="referrer" content="no-referrer">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Sofa</title>
+<title>SFM</title>
 <style>
   :root { color-scheme: dark; --bg:#101318; --card:#1b2230; --accent:#FF8A3D; --text:#e8eef5; --dim:#9fb3c8; }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -39,12 +39,37 @@
   #sens input { flex:1; padding:0; }
   #live { display:flex; align-items:center; gap:8px; margin-top:10px; color:var(--dim); font-size:15px; }
   #live input { width:auto; }
+  #mv[hidden] { display:none; }
+  .feed { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid #2c3647; }
+  .feed:last-of-type { border-bottom:0; }
+  .feed b { width:1.4em; color:var(--accent); }
+  .feed span { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .feed span.empty { color:#56657a; }
+  .feed button { flex:0 0 auto; padding:8px 12px; font-size:14px; }
+  select { font:inherit; color:var(--text); background:#2a3446; border:0; border-radius:12px; padding:0 10px; }
+  .hint { color:var(--dim); font-size:13px; margin:10px 0 0; line-height:1.4; }
   #status { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:#000c; padding:8px 16px;
     border-radius:20px; opacity:0; transition:opacity .2s; pointer-events:none; }
 </style>
 </head>
 <body>
-<header>Sofa <span id="dot"></span><span id="dotLabel">trackpad connecting…</span></header>
+<header>SFM <span id="dot"></span><span id="dotLabel">trackpad connecting…</span></header>
+
+<section id="mv" hidden>
+  <h2>Multiview feeds</h2>
+  <div id="feeds"></div>
+  <input id="feedUrl" type="url" inputmode="url" autocapitalize="off" autocorrect="off"
+    placeholder="Page, stream or &lt;iframe&gt; tag">
+  <div class="row">
+    <select id="slot" aria-label="Feed">
+      <option value="0">First empty</option><option value="1">Feed 1</option><option value="2">Feed 2</option>
+      <option value="3">Feed 3</option><option value="4">Feed 4</option>
+    </select>
+    <button class="primary" id="sendFeed">Send to TV</button>
+  </div>
+  <p class="hint">Camera logins aren't sent from the phone: this link is plain http. Send the camera's address, then add
+    its login and trust its certificate on the TV (Edit feeds).</p>
+</section>
 
 <section>
   <h2>Open on TV</h2>
@@ -107,7 +132,7 @@
       if (r.status === 403) { status('Link expired: scan the QR code again'); return false; }
       if (!r.ok) { status('The TV said no'); return false; }
       return true;
-    } catch (e) { status('TV not reachable: is Sofa open?'); return false; }
+    } catch (e) { status('TV not reachable: is SFM open?'); return false; }
   };
 
   // Storage can be missing or throw (private browsing); the defaults are fine then.
@@ -115,6 +140,68 @@
     get: (k, d) => { try { return localStorage.getItem(k) ?? d; } catch (e) { return d; } },
     set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* ignore */ } },
   };
+
+  // Multiview: shown while it is what's on the TV. Only labels come back (user@host, never a password).
+  const FEED_ERRORS = {
+    not_multiview: 'Open SFM Multiview on the TV first',
+    login: "Camera logins aren't sent from the phone. Add the login on the TV",
+    not_http: 'Only http and https addresses play in Multiview',
+    invalid: "The TV couldn't read that address",
+    bad_slot: 'No such feed',
+  };
+  let feedLabels = [];
+  const sendFeed = async (slot, url) => {
+    try {
+      const r = await fetch('/feed?slot=' + slot + '&t=' + encodeURIComponent(token), {
+        method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: url });
+      if (r.status === 403) { status('Link expired: scan the QR code again'); return false; }
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { status(FEED_ERRORS[j.result] || 'The TV said no'); return false; }
+      status(j.result === 'confirm' ? 'Check the TV to trust the camera' : (url ? 'Sent to TV' : 'Removed'));
+      setTimeout(refreshFeeds, 600);
+      return true;
+    } catch (e) { status('TV not reachable: is SFM open?'); return false; }
+  };
+  const renderFeeds = () => {
+    const box = $('feeds'); box.textContent = '';
+    feedLabels.forEach((label, i) => {
+      const row = document.createElement('div'); row.className = 'feed';
+      const n = document.createElement('b'); n.textContent = i + 1;
+      const name = document.createElement('span');
+      name.textContent = label || 'empty'; if (!label) name.className = 'empty';
+      row.append(n, name);
+      if (label) {
+        const rm = document.createElement('button'); rm.textContent = '✕'; rm.setAttribute('aria-label', 'Remove feed ' + (i + 1));
+        rm.onclick = () => { if (confirm('Remove feed ' + (i + 1) + ' (' + label + ')?')) sendFeed(i + 1, ''); };
+        row.append(rm);
+      }
+      box.append(row);
+    });
+  };
+  const refreshFeeds = async () => {
+    if (document.hidden) return;
+    try {
+      const r = await fetch('/feeds?t=' + encodeURIComponent(token));
+      if (!r.ok) return;
+      const j = await r.json();
+      $('mv').hidden = !j.multiview;
+      if (j.multiview) { feedLabels = j.feeds || []; renderFeeds(); }
+    } catch (e) { /* the TV is away; the next poll tries again */ }
+  };
+  $('sendFeed').onclick = async () => {
+    const v = $('feedUrl').value.trim(); if (!v) return;
+    let slot = +$('slot').value;
+    if (!slot) {
+      const free = feedLabels.findIndex((l) => !l);
+      if (free < 0) { status('All four feeds are in use: pick one to replace'); return; }
+      slot = free + 1;
+    }
+    if (await sendFeed(slot, v)) $('feedUrl').value = '';
+  };
+  $('feedUrl').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('sendFeed').click(); });
+  refreshFeeds();
+  setInterval(refreshFeeds, 3000);
+  document.addEventListener('visibilitychange', refreshFeeds);
 
   $('open').onclick = async () => {
     const v = $('url').value.trim(); if (!v) return;

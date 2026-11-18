@@ -31,7 +31,7 @@
 
     <!-- Phone -->
     <string name="phone_pair_title">Use your phone as a remote</string>
-    <string name="phone_pair_text">Scan this with your phone\'s camera. A page opens where you can open websites, type into the TV, use a trackpad and a remote. Nothing to install.\n\nThe phone must be on the same Wi-Fi, and it works while Sofa is open. It is plain HTTP on your home network: don\'t send passwords through it on a network you don\'t trust.\n\nAddress for a “Send to TV” shortcut:\n%1$s</string>
+    <string name="phone_pair_text">Scan this with your phone\'s camera. A page opens where you can open websites, send Multiview feeds, type into the TV, use a trackpad and a remote. Nothing to install.\n\nThe phone must be on the same Wi-Fi, and it works while SFM is open. It is plain HTTP on your home network: don\'t send passwords through it on a network you don\'t trust.\n\nAddress for a “Send to TV” shortcut:\n%1$s</string>
     <string name="phone_done">Done</string>
     <string name="phone_forget">Forget paired phones</string>
     <string name="phone_forgotten">Paired phones forgotten; the phone page is off until you pair again</string>

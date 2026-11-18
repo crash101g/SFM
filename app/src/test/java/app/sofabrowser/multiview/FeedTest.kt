@@ -70,4 +70,27 @@ class FeedTest {
         for (h in listOf("8.8.8.8", "172.32.0.1", "172.15.0.1", "192.169.0.1", "example.com", "[2001:db8::1]", "1.2.3"))
             assertFalse(h, Feed.isLocalHost(h))
     }
+
+    @Test fun loginFieldsMakeACameraAndNeedHttps() {
+        val f = (Feed.parse("https://cam.example.com/live.m3u8", " admin ", "pw") as Feed.Parsed.Ok).feed
+        assertEquals(Feed.Kind.CAMERA, f.kind)
+        assertEquals("admin", f.user)
+        assertEquals("pw", f.password)
+        assertEquals(Feed.Reason.LOGIN_NEEDS_HTTPS, (Feed.parse("http://cam.example.com/live.m3u8", "admin", "pw") as Feed.Parsed.Error).reason)
+        // The fields win over a login in the address.
+        assertEquals("b", (Feed.parse("https://a:x@cam.local/live.m3u8", "b", "y") as Feed.Parsed.Ok).feed.user)
+        // Empty fields leave the address as it is.
+        assertEquals(Feed.Kind.WEB, (Feed.parse("https://example.com/", "  ", "") as Feed.Parsed.Ok).feed.kind)
+    }
+
+    @Test fun thePhoneNeverSendsALogin() {
+        assertEquals(Feed.Reason.LOGIN_OVER_PHONE, (Feed.parseFromPhone("https://admin:pw@192.168.1.60/live.m3u8") as Feed.Parsed.Error).reason)
+        assertEquals(Feed.Reason.LOGIN_OVER_PHONE, (Feed.parseFromPhone("<iframe src=\"https://u:p@example.com/e\">") as Feed.Parsed.Error).reason)
+        assertEquals(Feed.Reason.NOT_HTTP, (Feed.parseFromPhone("rtsp://192.168.1.60/live") as Feed.Parsed.Error).reason)
+        // Without a login a camera address is fine: its certificate is still trusted on the TV.
+        val cam = (Feed.parseFromPhone("https://192.168.1.60/live.m3u8") as Feed.Parsed.Ok).feed
+        assertEquals(Feed.Kind.CAMERA, cam.kind)
+        assertNull(cam.pin)
+        assertEquals(Feed.Kind.WEB, (Feed.parseFromPhone("https://example.com/live") as Feed.Parsed.Ok).feed.kind)
+    }
 }

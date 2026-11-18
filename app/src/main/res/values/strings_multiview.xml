@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="multiview_label">SFM Multiview</string>
-    <string name="multiview_empty">Multiview plays up to four feeds at once: web pages, streams and IP cameras.\n\nPress OK to add feeds.</string>
+    <string name="multiview_empty">Multiview plays up to four feeds at once: web pages, streams and IP cameras.\n\nPress OK to add feeds. To send them from your phone instead, choose Phone remote there and scan the code.</string>
     <string name="multiview_connecting">Connecting…</string>
     <string name="multiview_reconnecting">Lost the feed. Trying again in %1$d s…</string>
     <string name="multiview_page_stopped">The page stopped. Starting it again…</string>
@@ -19,12 +19,18 @@
     <string name="multiview_menu_mute">Mute all</string>
     <string name="multiview_menu_titles">Show or hide titles</string>
     <string name="multiview_menu_edit">Edit feeds</string>
+    <string name="multiview_menu_phone">Phone remote</string>
 
     <string name="multiview_edit_title">Feeds</string>
     <string name="multiview_slot_empty">Feed %1$d: (empty)</string>
     <string name="multiview_slot">Feed %1$d: %2$s</string>
     <string name="multiview_feed_title">Feed %1$d</string>
     <string name="multiview_feed_hint">https://… a page, a stream, an &lt;iframe&gt; tag, or https://user:password@camera/…</string>
+    <string name="multiview_login_label">Camera login (optional, https only)</string>
+    <string name="multiview_user_hint">Username</string>
+    <string name="multiview_password_hint">Password</string>
+    <string name="multiview_password_keep">Password (leave empty to keep the saved one)</string>
+    <string name="multiview_replace_title">Replace which feed?</string>
     <string name="multiview_save">Save</string>
     <string name="multiview_remove">Remove</string>
     <string name="multiview_cancel">Cancel</string>
@@ -40,5 +46,6 @@
     <string name="multiview_error_no_host">That address has no host.</string>
     <string name="multiview_error_login_https">Camera logins are only sent over https.</string>
     <string name="multiview_error_camera_https">Cameras on the home network have to use https.</string>
+    <string name="multiview_error_login_phone">Camera logins aren\'t sent from the phone. Add the login on the TV.</string>
     <string name="multiview_error_bad_url">That isn\'t an address SFM can read.</string>
 </resources>

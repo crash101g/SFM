@@ -36,7 +36,7 @@ data class Feed(
         data class Error(val reason: Reason) : Parsed()
     }
 
-    enum class Reason { EMPTY, NOT_HTTP, NO_HOST, LOGIN_NEEDS_HTTPS, CAMERA_NEEDS_HTTPS, BAD_URL }
+    enum class Reason { EMPTY, NOT_HTTP, NO_HOST, LOGIN_NEEDS_HTTPS, CAMERA_NEEDS_HTTPS, BAD_URL, LOGIN_OVER_PHONE }
 
     companion object {
         const val MAX = 4
@@ -78,6 +78,29 @@ data class Feed(
                 return Parsed.Ok(Feed(Kind.CAMERA, clean))
             }
             return Parsed.Ok(Feed(if (stream) Kind.STREAM else Kind.WEB, clean))
+        }
+
+        /**
+         * [parse], then the login from the TV's Username and Password fields, which win over one in the address.
+         * A login makes the feed a camera, so it must be https.
+         */
+        fun parse(input: String, user: String?, password: String?): Parsed {
+            val parsed = parse(input)
+            val u = user?.trim().orEmpty()
+            if (parsed !is Parsed.Ok || u.isEmpty()) return parsed
+            if (!parsed.feed.url.startsWith("https://")) return Parsed.Error(Reason.LOGIN_NEEDS_HTTPS)
+            return Parsed.Ok(parsed.feed.copy(kind = Kind.CAMERA, user = u, password = password.orEmpty()))
+        }
+
+        /**
+         * A feed sent from the phone page. That link is plain http on the home network, so it never carries a camera
+         * login: an address with one is refused before anything is stored ([Reason.LOGIN_OVER_PHONE]). The login is
+         * typed on the TV instead.
+         */
+        fun parseFromPhone(input: String): Parsed {
+            val parsed = parse(input)
+            if (parsed is Parsed.Ok && parsed.feed.user != null) return Parsed.Error(Reason.LOGIN_OVER_PHONE)
+            return parsed
         }
 
         fun isStreamPath(path: String): Boolean {

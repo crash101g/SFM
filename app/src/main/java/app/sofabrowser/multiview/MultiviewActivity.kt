@@ -15,6 +15,9 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
 import app.sofabrowser.R
+import app.sofabrowser.browser.CursorLayout
+import app.sofabrowser.phone.PhoneRemote
+import app.sofabrowser.phone.PhoneServer
 import app.sofabrowser.ui.Ui
 import app.sofabrowser.ui.px
 import java.util.concurrent.Executors
@@ -24,6 +27,10 @@ import java.util.concurrent.Executors
  *
  * Remote: the arrows pick a tile; OK gives it the sound; holding OK, or Menu, opens the options; 1–4 give that feed the
  * sound and 0 mutes all; Back leaves full screen, then Multiview.
+ *
+ * The paired phone works here too (Menu → Phone remote shows the QR code): its remote and trackpad move around like the
+ * D-pad, and its Multiview section sends feeds. Those go through the same checks as typed ones, never carry a camera
+ * login (the phone link is plain http), and a camera's certificate is still trusted only here, on the TV.
  *
  * The feeds come only from what the user saved here ([FeedStore]). The activity is exported so the TV's launcher (and
  * adb) can start it, so it ignores everything in the intent that starts it: another app can't hand it a feed.
@@ -44,6 +51,10 @@ class MultiviewActivity : Activity() {
     private var titles = true
     private var okDownAt = -1L
     private var menuFromHold = false
+
+    /** The feeds as last built, for the phone's server threads. */
+    @Volatile private var shown: List<Feed?> = List(Feed.MAX) { null }
+    private val phone by lazy { PhoneRemote(this, phoneHost) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         Ui.init(this)
@@ -67,15 +78,18 @@ class MultiviewActivity : Activity() {
         feeds = store.load().toMutableList()
         audio = store.audio
         buildTiles()
+        phone.start()
     }
 
     override fun onStop() {
         // Nothing plays in the background: four decoders and pages are let go as soon as Multiview is left.
+        phone.stop()
         releaseTiles()
         super.onStop()
     }
 
     override fun onDestroy() {
+        phone.destroy()
         probes.shutdownNow()
         main.removeCallbacksAndMessages(null)
         super.onDestroy()
@@ -83,6 +97,7 @@ class MultiviewActivity : Activity() {
 
     private fun buildTiles() {
         releaseTiles()
+        shown = feeds.toList()
         val present = feeds.withIndex().filter { it.value != null }
         empty.visibility = if (present.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE
         present.forEachIndexed { pos, (i, feed) ->
@@ -183,6 +198,7 @@ class MultiviewActivity : Activity() {
         items += getString(R.string.multiview_menu_mute) to { audio = -1; store.audio = -1; refreshMarks() }
         items += getString(R.string.multiview_menu_titles) to { titles = !titles; tiles.forEach { it.titlesShown = titles } }
         items += getString(R.string.multiview_menu_edit) to { editFeeds() }
+        items += getString(R.string.multiview_menu_phone) to { phone.pairDialog() }
         Ui.dialog(this)
             .setTitle(tile.feed.label)
             .setItems(items.map { it.first }.toTypedArray()) { _, which -> items[which].second() }
@@ -203,6 +219,7 @@ class MultiviewActivity : Activity() {
             .setTitle(R.string.multiview_edit_title)
             .setItems(labels.toTypedArray()) { _, which -> editFeed(which) }
             .setPositiveButton(R.string.multiview_done, null)
+            .setNeutralButton(R.string.multiview_menu_phone) { _, _ -> phone.pairDialog() }
             .show()
     }
 
@@ -215,22 +232,48 @@ class MultiviewActivity : Activity() {
             imeOptions = EditorInfo.IME_ACTION_DONE or EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
             isSingleLine = true
         }
-        val box = FrameLayout(this).apply { setPadding(48.px, 16.px, 48.px, 0); addView(input) }
+        // The login has fields of its own: easier than typing "user:password@" into an address with the TV keyboard,
+        // and the only way to give one to a feed sent from the phone. The password is never filled in or shown.
+        val user = EditText(this).apply {
+            setText(old?.user.orEmpty())
+            setHint(R.string.multiview_user_hint)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
+            isSingleLine = true
+        }
+        val password = EditText(this).apply {
+            setHint(if (old?.password.isNullOrEmpty()) R.string.multiview_password_hint else R.string.multiview_password_keep)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            imeOptions = EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING
+            isSingleLine = true
+        }
+        val box = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48.px, 16.px, 48.px, 0)
+            addView(input)
+            addView(Ui.text(context, 22, Ui.p.textMid).apply { setText(R.string.multiview_login_label); setPadding(0, 24.px, 0, 0) })
+            addView(user)
+            addView(password)
+        }
         val b = Ui.dialog(this)
             .setTitle(getString(R.string.multiview_feed_title, i + 1))
             .setView(box)
-            .setPositiveButton(R.string.multiview_save) { _, _ -> save(i, input.text.toString(), old) }
+            .setPositiveButton(R.string.multiview_save) { _, _ ->
+                // An empty password box keeps the stored one, for the same user.
+                val pw = password.text.toString().ifEmpty { old?.password?.takeIf { old.user == user.text.toString().trim() } }
+                save(i, input.text.toString(), old, user.text.toString(), pw)
+            }
             .setNegativeButton(R.string.multiview_cancel, null)
         if (old != null) b.setNeutralButton(R.string.multiview_remove) { _, _ -> commit(i, null) }
         b.show()
     }
 
-    private fun save(i: Int, text: String, old: Feed?) {
-        var feed = when (val r = Feed.parse(text)) {
+    private fun save(i: Int, text: String, old: Feed?, user: String? = null, password: String? = null, fromPhone: Boolean = false) {
+        var feed = when (val r = if (fromPhone) Feed.parseFromPhone(text) else Feed.parse(text, user, password)) {
             is Feed.Parsed.Error -> { toast(errorText(r.reason)); return }
             is Feed.Parsed.Ok -> r.feed
         }
-        // Editing a camera without retyping its login keeps the login it had (it is never shown in the box).
+        // A camera address without a login (from the phone, or the fields left empty) keeps the login it had.
         if (feed.user == null && old?.kind == Feed.Kind.CAMERA && old.user != null &&
             old.host.equals(feed.host, true) && old.port == feed.port && feed.url.startsWith("https://")) {
             feed = feed.copy(kind = Feed.Kind.CAMERA, user = old.user, password = old.password)
@@ -277,7 +320,61 @@ class MultiviewActivity : Activity() {
         Feed.Reason.LOGIN_NEEDS_HTTPS -> R.string.multiview_error_login_https
         Feed.Reason.CAMERA_NEEDS_HTTPS -> R.string.multiview_error_camera_https
         Feed.Reason.BAD_URL -> R.string.multiview_error_bad_url
+        Feed.Reason.LOGIN_OVER_PHONE -> R.string.multiview_error_login_phone
     })
+
+    // The phone (PhoneRemote): the trackpad and arrows work as the D-pad, and feeds come in through setFeed.
+
+    private val phoneHost = object : PhoneRemote.Host {
+        override val cursor: CursorLayout? = null
+        override val web: android.webkit.WebView? = null
+        override fun pageInFront() = false
+        override fun openFromPhone(url: String) {}
+        override fun zoom(zoomIn: Boolean) {}
+        override fun removeAtPointer() {}
+        override fun cleanUp() {}
+
+        /** "Open" (and the iPhone Shortcut) adds the address to the first empty slot, or asks on the TV which to replace. */
+        override fun openRawFromPhone(input: String): Boolean {
+            if (Feed.parseFromPhone(input) is Feed.Parsed.Error) return false
+            main.post {
+                val free = feeds.indexOfFirst { it == null }
+                if (free >= 0) return@post save(free, input, null, fromPhone = true)
+                val names = (0 until Feed.MAX).map { getString(R.string.multiview_slot, it + 1, feeds[it]?.label.orEmpty()) }
+                Ui.dialog(this@MultiviewActivity)
+                    .setTitle(R.string.multiview_replace_title)
+                    .setItems(names.toTypedArray()) { _, which -> save(which, input, feeds[which], fromPhone = true) }
+                    .setNegativeButton(R.string.multiview_cancel, null)
+                    .show()
+            }
+            return true
+        }
+
+        override fun feeds(): List<String?> = shown.map { it?.label }
+
+        override fun setFeed(slot: Int, input: String): PhoneServer.FeedReply {
+            if (slot !in 0 until Feed.MAX) return PhoneServer.FeedReply.BAD_SLOT
+            if (input.isEmpty()) {
+                main.post { if (feeds[slot] != null) commit(slot, null) }
+                return PhoneServer.FeedReply.OK
+            }
+            val parsed = when (val r = Feed.parseFromPhone(input)) {
+                is Feed.Parsed.Ok -> r.feed
+                is Feed.Parsed.Error -> return when (r.reason) {
+                    Feed.Reason.LOGIN_OVER_PHONE -> PhoneServer.FeedReply.LOGIN_OVER_PHONE
+                    Feed.Reason.NOT_HTTP -> PhoneServer.FeedReply.NOT_HTTP
+                    else -> PhoneServer.FeedReply.INVALID
+                }
+            }
+            main.post { save(slot, input, feeds[slot], fromPhone = true) }
+            // A camera, or the camera already in this slot at a new address (it keeps its login): its certificate is
+            // checked, and trusted if it changed, at the TV.
+            val old = shown[slot]
+            val camera = parsed.kind == Feed.Kind.CAMERA ||
+                old?.kind == Feed.Kind.CAMERA && old.host.equals(parsed.host, true) && old.port == parsed.port
+            return if (camera) PhoneServer.FeedReply.CONFIRM_ON_TV else PhoneServer.FeedReply.OK
+        }
+    }
 
     private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_LONG).show()
 
