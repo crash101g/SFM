@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.2.4-sfm.1 (2026-11-18)
+
+First SFM release: the Sofa fork 1.2.4-tvcouch.1 plus **Multiview**. SFM installs as its own app
+(`app.sofabrowser.sfm`), beside Sofa and the Sofa fork. See SFM.md.
+
+- **Multiview** (its own launcher entry, SFM Multiview): up to four web pages, HLS/DASH/progressive streams and IP
+  cameras on one screen, one with the sound. Arrows pick a tile, OK gives it the sound, Menu (or hold OK) for full
+  screen, reload, press play in a page, mute and Edit feeds.
+- **Locked down:** web tiles stay on their own site, open no pop-ups and have WebRTC removed. Every feed is http(s)
+  only. Cameras use https pinned to the certificate you trusted on the TV, and a rejected login (401/403) is never
+  retried. Feeds and camera logins are stored encrypted.
+- **From the phone:** the phone remote gets a Multiview section to send, replace and remove feeds (never camera
+  logins, which are typed on the TV), and its "Open" and the iPhone Shortcut add feeds while Multiview is on.
+- **From the browser:** **Add to Multiview** in the menu adds the page; **Send to Multiview** on the video bar sends
+  the video playing, asked for with the page's own headers and cookies.
+- **Video bar:** Left and Right now step through all its buttons; the ones on the right were unreachable with the
+  remote.
+
 ## 1.2.4-tvcouch.1 (2026-11-08)
 
 - **Clearly an unofficial fork:** the app is called **Sofa (fork)** on the TV, its banner carries a FORK badge, and

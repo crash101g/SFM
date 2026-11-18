@@ -1,0 +1,1 @@
+First SFM release: the Sofa fork plus Multiview, up to four web pages, streams and IP cameras on one screen. Web tiles stay on their site with no pop-ups or WebRTC; cameras use pinned https and never retry a rejected login. Send feeds from the phone remote, add the page or the playing video from the browser, and the video bar's buttons are all reachable with the remote.
