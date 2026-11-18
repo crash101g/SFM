@@ -4,6 +4,11 @@
     <string name="multiview_empty">Multiview plays up to four feeds at once: web pages, streams and IP cameras.\n\nPress OK to add feeds. To send them from your phone instead, choose Phone remote there and scan the code.</string>
     <string name="multiview_connecting">Connecting…</string>
     <string name="multiview_reconnecting">Lost the feed. Trying again in %1$d s…</string>
+    <string name="multiview_autoreload">Not playing. Reloading (try %1$d of %2$d)…</string>
+    <string name="multiview_autoreload_gave_up">Didn\'t start after %1$d reloads.\nReload it from the menu.</string>
+    <string name="multiview_page_refused">This page refused access (%1$d).\nSFM won\'t reload it by itself.</string>
+    <string name="multiview_menu_autoreload_on">Auto-reload: on</string>
+    <string name="multiview_menu_autoreload_off">Auto-reload: off</string>
     <string name="multiview_page_stopped">The page stopped. Starting it again…</string>
     <string name="multiview_login_rejected">Login rejected (401).\nCheck the camera\'s username and password in Edit feeds.\nSFM won\'t retry it by itself.</string>
     <string name="multiview_forbidden">Access refused (403).\nSFM won\'t retry it by itself.</string>

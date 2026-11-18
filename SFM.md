@@ -139,13 +139,12 @@ and pull request. The APK is attached to the run as an artifact.
   play in a tile; add the page instead.
 - No RTSP: cameras must offer an https stream (HLS, DASH or progressive) that ExoPlayer plays. RTSPS is planned; see
   below.
-- No auto-reload of web feeds that never start playing; use Reload. Planned; see below.
 - No cosmetic filtering (element hiding) in web tiles, only network blocking. Planned; see below.
 
-## Planned: auto-reload for web feeds that never start
+## Auto-reload for web feeds that never start
 
-A future release, not started. Some stream sites need a reload or two before their player starts. The desktop
-multiview's `auto_reload` handles this, and SFM would follow it, within its own rules:
+Built on `main` for the next release (after 1.2.4-sfm.1). Some stream sites need a reload or two before their player
+starts. The desktop multiview's `auto_reload` handles this, and SFM follows it, within its own rules:
 
 - **When:** a web tile reloads itself if no video has started playing within 20 s of loading, or if its player shows
   an error screen (JW Player or video.js errors, or a failed `<video>`) that is still there 2 s later while nothing on
@@ -160,11 +159,14 @@ multiview's `auto_reload` handles this, and SFM would follow it, within its own 
 - **No retry on a refused login:** a page whose main document answered 401 or 403 is not reloaded, consistent with
   the camera rule. The tile says why.
 - **Web tiles only:** stream and camera tiles already reconnect on their own (`Reconnect`).
-- **Setting:** on by default, with an off switch, and the times and tries as in the desktop app
-  (`auto_reload_after` 20 s, `auto_reload_tries` 3).
+- **Setting:** on by default; Menu → **Auto-reload: on/off** switches it for all tiles. The times and tries are the
+  desktop app's (20 s, 3 tries).
 
-How: the page reports "playing" and "error" from a document-start script (as the mute script does), and the
-decisions sit in a plain-Kotlin class with unit tests, like `Reconnect`.
+How: every 2 s each frame's document-start script (`PageScripts.watch`) reports "playing" (a video's time moves) or
+"error" over a message channel with a random name per tile. It sends one letter and gets nothing back, so a page that
+fakes it can only stop or cause reloads of its own feed, at most 3. `AutoReload` makes the decisions (plain Kotlin,
+unit-tested), and the activity hands out turns. Without WebView's message listeners a tile just doesn't reload by
+itself.
 
 ## Planned: cosmetic filtering in web tiles
 

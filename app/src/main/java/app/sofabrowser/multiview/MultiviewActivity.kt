@@ -119,7 +119,7 @@ class MultiviewActivity : Activity() {
         val present = feeds.withIndex().filter { it.value != null }
         empty.visibility = if (present.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE
         present.forEachIndexed { pos, (i, feed) ->
-            val tile = if (feed!!.kind == Feed.Kind.WEB) WebTile(this, i, feed) else StreamTile(this, i, feed)
+            val tile = if (feed!!.kind == Feed.Kind.WEB) WebTile(this, i, feed, reloadGate) else StreamTile(this, i, feed)
             tile.titlesShown = titles
             tiles += tile
             grid.addView(tile)
@@ -214,6 +214,8 @@ class MultiviewActivity : Activity() {
         items += getString(R.string.multiview_menu_reload_all) to { reloadAll() }
         if (tile is WebTile) items += getString(R.string.multiview_menu_tap) to { tile.tap() }
         items += getString(R.string.multiview_menu_mute) to { audio = -1; store.audio = -1; refreshMarks() }
+        items += getString(if (store.autoReload) R.string.multiview_menu_autoreload_on else R.string.multiview_menu_autoreload_off) to
+            { store.autoReload = !store.autoReload }
         items += getString(R.string.multiview_menu_titles) to { titles = !titles; tiles.forEach { it.titlesShown = titles } }
         items += getString(R.string.multiview_menu_edit) to { editFeeds() }
         items += getString(R.string.multiview_menu_phone) to { phone.pairDialog() }
@@ -221,6 +223,14 @@ class MultiviewActivity : Activity() {
             .setTitle(tile.feed.label)
             .setItems(items.map { it.first }.toTypedArray()) { _, which -> items[which].second() }
             .show()
+    }
+
+    /** Auto-reload takes turns: one feed reloads, and the next waits [RELOAD_GAP_MS] (more than a page's start). */
+    private val reloadGate = object : WebTile.ReloadGate {
+        private var nextAt = 0L
+        override val enabled get() = store.autoReload
+        override fun free(now: Long) = now >= nextAt
+        override fun reserve(now: Long) { nextAt = now + RELOAD_GAP_MS }
     }
 
     private fun reloadAll() {
@@ -401,5 +411,6 @@ class MultiviewActivity : Activity() {
     companion object {
         private const val STAGGER_MS = 3_000L
         private const val HOLD_MS = 600L
+        private const val RELOAD_GAP_MS = 10_000L
     }
 }

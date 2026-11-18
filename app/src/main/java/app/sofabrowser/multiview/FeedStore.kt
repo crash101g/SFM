@@ -64,6 +64,11 @@ class FeedStore(context: Context) {
         prefs.edit().putString("feeds", enc).putString("plain", if (enc == null) json else null).apply()
     }
 
+    /** Web feeds that don't start, or show a player error, reload by themselves (on by default). */
+    var autoReload: Boolean
+        get() = prefs.getBoolean("auto_reload", true)
+        set(v) = prefs.edit().putBoolean("auto_reload", v).apply()
+
     /** Which tile (0–3) has the sound; -1 when all are muted. */
     var audio: Int
         get() = prefs.getInt("audio", 0)

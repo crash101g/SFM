@@ -18,6 +18,8 @@ import app.sofabrowser.Prefs
 import app.sofabrowser.R
 import app.sofabrowser.adblock.AdBlocker
 import app.sofabrowser.browser.WebViews
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 
 /**
  * A web page or embed player. What it may do is narrower than Sofa's browser tab:
@@ -28,9 +30,40 @@ import app.sofabrowser.browser.WebViews
  * - **Ad blocking**: Sofa's filter lists on every request of every frame.
  * - No file or content access, no geolocation, no mixed content (as Sofa's [WebViews.configure] sets them), and HTTP
  *   logins asked for by a page are cancelled, never retried.
+ * - **Auto-reload** ([AutoReload]) when the feed never starts or its player shows an error, at most 3 times, one feed
+ *   at a time ([gate]), never after a 401/403, and always to the feed's own address.
  */
 @SuppressLint("ViewConstructor")
-class WebTile(context: Context, index: Int, feed: Feed) : Tile(context, index, feed) {
+class WebTile(context: Context, index: Int, feed: Feed, private val gate: ReloadGate) : Tile(context, index, feed) {
+
+    /** Shared by the tiles: whether auto-reload is on, and turns so only one feed reloads at a time. */
+    interface ReloadGate {
+        val enabled: Boolean
+        fun free(now: Long): Boolean
+        fun reserve(now: Long)
+    }
+
+    private val autoReload = AutoReload()
+    /** The page's channel for auto-reload; a random name, so pages can't guess another tile's. */
+    private val watchKey = "sfm" + java.util.UUID.randomUUID().toString().replace("-", "")
+    private var watching = false
+    private val tick = object : Runnable {
+        override fun run() {
+            val now = SystemClock.uptimeMillis()
+            if (watching && gate.enabled) when (autoReload.check(now, gate.free(now))) {
+                AutoReload.Action.RELOAD -> {
+                    gate.reserve(now)
+                    showStatus(context.getString(R.string.multiview_autoreload, autoReload.attempts, AutoReload.MAX_TRIES))
+                    main.postDelayed({ showStatus(null) }, 4_000)
+                    load(manual = false)
+                }
+                AutoReload.Action.GIVE_UP ->
+                    showStatus(context.getString(R.string.multiview_autoreload_gave_up, AutoReload.MAX_TRIES))
+                AutoReload.Action.NONE -> {}
+            }
+            main.postDelayed(this, TICK_MS)
+        }
+    }
 
     private val blocker = AdBlocker.get(context)
     private val lock = NavigationLock(feed.url)
@@ -41,8 +74,18 @@ class WebTile(context: Context, index: Int, feed: Feed) : Tile(context, index, f
 
     override fun start() {
         if (web == null) build()
+        load(manual = true)
+        main.removeCallbacks(tick)
+        main.postDelayed(tick, TICK_MS)
+    }
+
+    /** Loads the feed's own saved address, never wherever the page had gone, with the navigation lock reset to it. */
+    private fun load(manual: Boolean) {
+        val w = web ?: return
+        autoReload.loaded(SystemClock.uptimeMillis(), manual)
         lock.reset(feed.url)
-        web?.loadUrl(feed.url)
+        w.stopLoading()
+        w.loadUrl(feed.url)
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -62,6 +105,18 @@ class WebTile(context: Context, index: Int, feed: Feed) : Tile(context, index, f
         w.setBackgroundColor(android.graphics.Color.BLACK)
         scriptsAtStart = WebViews.addDocumentStartScript(w, PageScripts.NO_WEBRTC) &&
             WebViews.addDocumentStartScript(w, PageScripts.MUTE)
+        // Auto-reload needs the page's reports; without message listeners the tile just doesn't reload by itself.
+        watching = scriptsAtStart && WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)
+        if (watching) {
+            WebViewCompat.addWebMessageListener(w, watchKey, setOf("*")) { _, message, _, _, _ ->
+                val now = SystemClock.uptimeMillis()
+                when (message.data) {
+                    "p" -> autoReload.playing(now)
+                    "e" -> autoReload.error(now)
+                }
+            }
+            watching = WebViews.addDocumentStartScript(w, PageScripts.watch(watchKey))
+        }
         w.webViewClient = Client()
         w.webChromeClient = Chrome()
         if (web == null) setContent(w) else replaceContent(w)
@@ -69,12 +124,11 @@ class WebTile(context: Context, index: Int, feed: Feed) : Tile(context, index, f
         applyAudio(audible)
     }
 
+    /** Reload by hand (the menu): the auto-reload count starts over. */
     override fun reload() {
         showStatus(null)
-        val w = web ?: return start()
-        lock.reset(feed.url)
-        w.stopLoading()
-        w.loadUrl(feed.url)
+        if (web == null) return start()
+        load(manual = true)
     }
 
     override fun release() {
@@ -137,6 +191,15 @@ class WebTile(context: Context, index: Int, feed: Feed) : Tile(context, index, f
         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
             blocker.intercept(request, pageUrl, pageHost)
 
+        override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, response: WebResourceResponse) {
+            // A page that refuses us is not reloaded again and again, as a camera never retries a refused login.
+            val code = response.statusCode
+            if (request.isForMainFrame && (code == 401 || code == 403)) {
+                autoReload.refusedLogin()
+                showStatus(context.getString(R.string.multiview_page_refused, code))
+            }
+        }
+
         override fun onReceivedHttpAuthRequest(view: WebView, handler: android.webkit.HttpAuthHandler, host: String, realm: String) {
             // Pages don't get a login prompt, and a login isn't retried.
             handler.cancel()
@@ -192,5 +255,9 @@ class WebTile(context: Context, index: Int, feed: Feed) : Tile(context, index, f
             result.confirm()
             return true
         }
+    }
+
+    private companion object {
+        const val TICK_MS = 2_000L
     }
 }

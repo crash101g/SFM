@@ -87,5 +87,35 @@ object PageScripts {
         })();
     """.trimIndent()
 
+    /**
+     * Auto-reload ([AutoReload]): every 2 s each frame tells SFM, over its own channel [key], whether a video in it is
+     * playing (its time moves) or shows a player error with nothing playing (a failed video, or JW Player's or video.js's
+     * error screen). It sends one letter and takes nothing back. A page that fakes it can only keep its own feed from
+     * being reloaded, or have it reloaded, at most 3 times.
+     */
+    fun watch(key: String) = """
+        (function () {
+          var ch = window['$key'];
+          if (!ch || window.__sfmWatch) return;
+          try { Object.defineProperty(window, '__sfmWatch', { value: true }); } catch (e) {}
+          var last = new WeakMap();
+          setInterval(function () {
+            var playing = false, failed = false;
+            var vs = document.querySelectorAll('video');
+            for (var i = 0; i < vs.length; i++) {
+              var v = vs[i], t = v.currentTime, before = last.get(v);
+              last.set(v, t);
+              if (!v.paused && !v.ended && v.readyState >= 3 && before !== undefined && t > before) playing = true;
+              if (v.error) failed = true;
+            }
+            if (!playing) {
+              var e = document.querySelector('.jw-error, .jw-state-error, .vjs-error');
+              if (e && e.getClientRects().length) failed = true;
+            }
+            try { if (playing) ch.postMessage('p'); else if (failed) ch.postMessage('e'); } catch (e) {}
+          }, 2000);
+        })();
+    """.trimIndent()
+
     fun setMuted(muted: Boolean) = "window.__sfmSetMuted && window.__sfmSetMuted($muted);"
 }
