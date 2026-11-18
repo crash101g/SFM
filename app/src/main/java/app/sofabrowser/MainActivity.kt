@@ -617,6 +617,12 @@ class MainActivity : Activity(), HomeView.Listener, Browser.Host, BrowserMenu.Ac
             BrowserMenu.Action.DOWNLOADS -> { menu?.dismiss(); onDownloads() }
             BrowserMenu.Action.CLEAN_UP -> { menu?.dismiss(); cleanUp.dialog() }
             BrowserMenu.Action.PHONE -> { menu?.dismiss(); phone.pairDialog() }
+            BrowserMenu.Action.MULTIVIEW -> if (Browser.isWebUrl(url) && !browser.privateMode) {
+                menu?.dismiss()
+                // In memory, not in the intent: Multiview ignores intent data, since other apps can start it.
+                app.sofabrowser.multiview.MultiviewInbox.put(url)
+                startActivity(Intent(this, app.sofabrowser.multiview.MultiviewActivity::class.java))
+            }
         }
         menu?.takeIf { it.isShowing }?.update(menuState())
     }

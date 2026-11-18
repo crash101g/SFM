@@ -10,6 +10,8 @@
     <string name="multiview_cert_changed">The camera\'s certificate has changed, so SFM stopped.\nIf you changed it yourself, edit the feed to trust the new one.</string>
     <string name="multiview_camera_untrusted">This camera\'s certificate hasn\'t been trusted yet. Edit the feed to check it.</string>
 
+    <string name="add_to_multiview">Add to Multiview</string>
+    <string name="multiview_added">Added as feed %1$d</string>
     <string name="multiview_menu_audio">Sound from this feed</string>
     <string name="multiview_menu_solo">Full screen</string>
     <string name="multiview_menu_grid">Back to the grid</string>

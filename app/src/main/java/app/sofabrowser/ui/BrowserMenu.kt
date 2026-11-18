@@ -22,7 +22,7 @@ import app.sofabrowser.R
 class BrowserMenu(context: Context, private val actions: Actions) : Dialog(context, android.R.style.Theme_Translucent_NoTitleBar) {
 
     enum class Action { HOME, WATCH, AUTO_WATCH, BACK, FORWARD, RELOAD, FIND, BOOKMARK, PIN, HISTORY, BOOKMARKS, DOWNLOADS, ADBLOCK, ALLOW_ONCE, USER_AGENT, SCROLL, POINTER, ZOOM_OUT, ZOOM_IN, SETTINGS,
-        CLEAN_UP, PHONE }
+        CLEAN_UP, PHONE, MULTIVIEW }
 
     interface Actions {
         fun onAddress()
@@ -115,6 +115,8 @@ class BrowserMenu(context: Context, private val actions: Actions) : Dialog(conte
         add(Action.FIND, R.drawable.ic_find_in_page, R.string.find_in_page)
         add(Action.BOOKMARK, R.drawable.ic_star, R.string.bookmark)
         add(Action.PIN, R.drawable.ic_add, R.string.pin_to_home)
+        // SFM: the page as a Multiview feed. Not in private browsing, which saves nothing.
+        add(Action.MULTIVIEW, R.drawable.ic_multiview, R.string.add_to_multiview)
         add(Action.HISTORY, R.drawable.ic_history, R.string.history)
         add(Action.BOOKMARKS, R.drawable.ic_bookmarks, R.string.bookmarks)
         add(Action.DOWNLOADS, R.drawable.ic_download, R.string.downloads)
@@ -171,6 +173,7 @@ class BrowserMenu(context: Context, private val actions: Actions) : Dialog(conte
             b.visibility = if (s.privateMode) android.view.View.GONE else android.view.View.VISIBLE
             b.set(R.drawable.ic_autoplay, context.getString(if (s.autoWatchHere) R.string.auto_watch_on else R.string.auto_watch_off))
         }
+        buttons[Action.MULTIVIEW]?.visibility = if (s.privateMode) android.view.View.GONE else android.view.View.VISIBLE
         buttons[Action.USER_AGENT]?.set(if (s.desktop) R.drawable.ic_desktop_windows else R.drawable.ic_smartphone,
             context.getString(R.string.user_agent))
         buttons[Action.POINTER]?.set(if (s.pointer) R.drawable.ic_mouse else R.drawable.ic_keyboard,

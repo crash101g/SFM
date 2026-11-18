@@ -1,0 +1,11 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960"
+>
+  <!-- Four tiles, the Multiview grid. -->
+  <path
+      android:fillColor="#FFFFFFFF"
+      android:pathData="M120,200L450,200L450,460L120,460ZM510,200L840,200L840,460L510,460ZM120,500L450,500L450,760L120,760ZM510,500L840,500L840,760L510,760Z"/>
+</vector>

@@ -31,6 +31,15 @@ One feed fills the screen, two sit side by side, three or four make a 2×2 grid.
 | 1–4 / 0 | Sound to feed 1–4 / mute all |
 | Back | Leave full screen, then Multiview |
 
+### From the browser
+
+In SFM's browser, the menu's **Add to Multiview** button (the four-tile icon, next to **Add to home**) adds the page
+you're on. It opens Multiview with the page in the first empty slot, or asks which feed to replace. It isn't offered in
+private browsing, since adding saves the address.
+
+The address goes to Multiview in memory (`MultiviewInbox`), not in the intent: Multiview is exported for the launcher and
+ignores intent data. The address is taken once, and only within 30 s, so one that never arrived can't turn up later.
+
 ### From the phone
 
 The phone remote works in Multiview too. Pair it from **Edit feeds → Phone remote** (or Menu → **Phone remote**), or
@@ -118,7 +127,8 @@ and pull request. The APK is attached to the run as an artifact.
 
 ## Not done yet
 
-- No "Add to Multiview" in the browser's menu yet.
+- "Add to Multiview" adds the page, not the video stream the browser found on it (stream addresses often need the
+  page's cookies and headers, which a stream tile doesn't send).
 - No RTSP: cameras must offer an https stream (HLS, DASH or progressive) that ExoPlayer plays.
 - No auto-reload of web feeds that never start playing (the desktop app's `auto_reload`); use Reload.
 - No cosmetic filtering (element hiding) in web tiles, only network blocking.

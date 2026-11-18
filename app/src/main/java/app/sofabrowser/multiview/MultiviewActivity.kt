@@ -81,6 +81,24 @@ class MultiviewActivity : Activity() {
         phone.start()
     }
 
+    override fun onResume() {
+        super.onResume()
+        // "Add to Multiview" from the browser (in memory, never from the intent).
+        MultiviewInbox.take()?.let { add(it, fromPhone = false) }
+    }
+
+    /** Puts [input] in the first empty slot, or asks which feed to replace; the usual checks and camera trust apply. */
+    private fun add(input: String, fromPhone: Boolean) {
+        val free = feeds.indexOfFirst { it == null }
+        if (free >= 0) return save(free, input, null, fromPhone = fromPhone)
+        val names = (0 until Feed.MAX).map { getString(R.string.multiview_slot, it + 1, feeds[it]?.label.orEmpty()) }
+        Ui.dialog(this)
+            .setTitle(R.string.multiview_replace_title)
+            .setItems(names.toTypedArray()) { _, which -> save(which, input, feeds[which], fromPhone = fromPhone) }
+            .setNegativeButton(R.string.multiview_cancel, null)
+            .show()
+    }
+
     override fun onStop() {
         // Nothing plays in the background: four decoders and pages are let go as soon as Multiview is left.
         phone.stop()
@@ -307,6 +325,7 @@ class MultiviewActivity : Activity() {
     }
 
     private fun commit(i: Int, feed: Feed?) {
+        if (feed != null && feeds[i] == null) toast(getString(R.string.multiview_added, i + 1))
         feeds[i] = feed
         store.save(feeds)
         if (feed != null && feeds.count { it != null } == 1) { audio = i; store.audio = i }
@@ -337,16 +356,7 @@ class MultiviewActivity : Activity() {
         /** "Open" (and the iPhone Shortcut) adds the address to the first empty slot, or asks on the TV which to replace. */
         override fun openRawFromPhone(input: String): Boolean {
             if (Feed.parseFromPhone(input) is Feed.Parsed.Error) return false
-            main.post {
-                val free = feeds.indexOfFirst { it == null }
-                if (free >= 0) return@post save(free, input, null, fromPhone = true)
-                val names = (0 until Feed.MAX).map { getString(R.string.multiview_slot, it + 1, feeds[it]?.label.orEmpty()) }
-                Ui.dialog(this@MultiviewActivity)
-                    .setTitle(R.string.multiview_replace_title)
-                    .setItems(names.toTypedArray()) { _, which -> save(which, input, feeds[which], fromPhone = true) }
-                    .setNegativeButton(R.string.multiview_cancel, null)
-                    .show()
-            }
+            main.post { add(input, fromPhone = true) }
             return true
         }
 
