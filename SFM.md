@@ -140,7 +140,7 @@ and pull request. The APK is attached to the run as an artifact.
 - No RTSP: cameras must offer an https stream (HLS, DASH or progressive) that ExoPlayer plays. RTSPS is planned; see
   below.
 - No auto-reload of web feeds that never start playing; use Reload. Planned; see below.
-- No cosmetic filtering (element hiding) in web tiles, only network blocking.
+- No cosmetic filtering (element hiding) in web tiles, only network blocking. Planned; see below.
 
 ## Planned: auto-reload for web feeds that never start
 
@@ -165,6 +165,34 @@ multiview's `auto_reload` handles this, and SFM would follow it, within its own 
 
 How: the page reports "playing" and "error" from a document-start script (as the mute script does), and the
 decisions sit in a plain-Kotlin class with unit tests, like `Reconnect`.
+
+## Planned: cosmetic filtering in web tiles
+
+A future release, not started. Web tiles block ad and tracker requests, but they don't hide the empty ad boxes,
+banners and overlays left behind, which the browser does. The browser's code for it is reusable as it is, so this is
+mostly wiring:
+
+- **Element hiding:** install `InPageBlocking` in each `WebTile`, with its own `PageKey`, as `Browser` does. It uses
+  the filter lists' `##` rules, the page's own selectors plus the generic ones for the class and id names it sees,
+  in one style sheet that also covers ads added later.
+- **Trap links:** the same script removes the near-invisible, page-covering links pop-under networks lay over a
+  page. In a tile the first remote press would otherwise go to the ad. The navigation lock already stops the ad from
+  replacing the feed; this stops the press being wasted.
+- **The browser's per-site choices apply:** sites allowed in the browser (ad blocking off) stay unfiltered in tiles.
+  Elements removed with "Remove element" (`RemovedElements`) are hidden in tiles too, and "Clean up this site
+  automatically" runs `CleanUp` there, so cookie walls and sticky bars come off. Clean-up keeps anything holding a
+  video, so the feed itself is never hidden.
+
+Rules it keeps (from `InPageBlocking`, unchanged):
+
+- The page-to-SFM channel has a random name per WebView. A page that finds it can only ask which of its own elements
+  would be hidden, or report a blocked pop-up. It can't load addresses, read settings or run anything in SFM.
+- Selectors go in as CSS rules one at a time, so a broken or hostile one is dropped and can't run script.
+- It needs WebView's document-start scripts and message listeners. Without them tiles get network blocking only, as
+  the browser does.
+
+To check first: memory and CPU with four filtered tiles on the onn. The rule index is shared (one `AdBlocker`), so the
+extra cost should be the small per-page script, but it needs measuring on the TV.
 
 ## Planned: RTSPS cameras (Wyze)
 
