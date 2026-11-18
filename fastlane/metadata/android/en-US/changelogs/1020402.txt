@@ -1,0 +1,1 @@
+Auto-reload for web feeds: a tile whose video doesn't start within 20 s, or whose player shows an error, reloads itself, up to 3 times, one feed at a time and always to its own address. A page that refuses access (401/403) is never reloaded by itself. Turn it off with Menu, Auto-reload.

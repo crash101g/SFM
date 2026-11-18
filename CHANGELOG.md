@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.4-sfm.2 (2026-11-18)
+
+- **Auto-reload for web feeds that never start:** a web tile reloads itself if no video plays within 20 s (then
+  40 s, 60 s), or if its player shows an error screen with nothing playing. After 3 tries it stops and says so.
+  Feeds that have played are left alone when paused or buffering, and a broken ad video beside a working stream
+  doesn't count.
+- **Within SFM's rules:** a reload always goes to the feed's own saved address with the navigation lock reset. A page
+  refused with 401 or 403 is never reloaded by itself, and feeds reload one at a time.
+- Menu → **Auto-reload: on/off** (on by default). Reloading a feed by hand starts its count over.
+
 ## 1.2.4-sfm.1 (2026-11-18)
 
 First SFM release: the Sofa fork 1.2.4-tvcouch.1 plus **Multiview**. SFM installs as its own app
