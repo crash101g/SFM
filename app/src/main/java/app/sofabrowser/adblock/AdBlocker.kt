@@ -60,6 +60,7 @@ class AdBlocker private constructor(private val context: Context) {
     init {
         worker.execute {
             lists = runCatching { loadOrMigrate() }.getOrDefault(FilterList.defaults())
+            runCatching { if (!rawFile(myList()).isFile) writeMyFilters(FilterList.MY_FILTERS_DEFAULT) }
             publish()
             ready = true
         }
@@ -186,7 +187,7 @@ class AdBlocker private constructor(private val context: Context) {
 
     fun remove(id: String, done: () -> Unit = {}) = change(done) {
         val list = lists.firstOrNull { it.id == id } ?: return@change
-        if (list.bundled) return@change
+        if (list.bundled || list.local) return@change
         lists = lists - list
         save()
         delete(list)
@@ -215,6 +216,28 @@ class AdBlocker private constructor(private val context: Context) {
         delete(list)
         edit(id) { it.copy(updated = 0, error = null) }
         publish()
+    }
+
+    /** The text of My filters ([FilterList.MY_FILTERS]), for editing; its default before the first start has written it. */
+    fun myFilters(done: (String) -> Unit) = worker.execute {
+        val text = runCatching { GZIPInputStream(rawFile(myList()).inputStream()).bufferedReader().use { it.readText() } }
+            .getOrDefault(FilterList.MY_FILTERS_DEFAULT)
+        main.post { done(text) }
+    }
+
+    /**
+     * Saves [text] as My filters and makes it active at once (it is switched on if it was off). The result is the
+     * number of rules it now has, or the failure (too long). Lines that aren't rules are kept as they are and ignored.
+     */
+    fun setMyFilters(text: String, done: (Result<Int>) -> Unit) = worker.execute {
+        val result = runCatching {
+            require(text.length <= FilterList.MY_FILTERS_MAX) { "longer than ${FilterList.MY_FILTERS_MAX} characters" }
+            writeMyFilters(text.replace("\r\n", "\n"))
+            edit(FilterList.MY_FILTERS) { it.copy(enabled = true, updated = System.currentTimeMillis(), error = null) }
+            publish()
+            lists.first { it.local }.rules
+        }
+        main.post { done(result) }
     }
 
     private fun change(done: () -> Unit, block: () -> Unit) = worker.execute {
@@ -392,6 +415,18 @@ class AdBlocker private constructor(private val context: Context) {
         val tmp = File(dir, list.id + ".bin.tmp")
         DataOutputStream(tmp.outputStream().buffered(1 shl 16)).use { compiled.writeTo(it, stamp) }
         if (!tmp.renameTo(compiledFile(list))) tmp.delete()
+    }
+
+    private fun myList() = lists.firstOrNull { it.local } ?: FilterList(FilterList.MY_FILTERS, "My filters", null)
+
+    /** Writes My filters' text, gzipped as downloads are, so it compiles and caches like any list. */
+    private fun writeMyFilters(text: String) {
+        dir.mkdirs()
+        val list = myList()
+        val tmp = File(dir, list.id + ".txt.gz.tmp")
+        java.util.zip.GZIPOutputStream(tmp.outputStream()).use { it.write(text.toByteArray()) }
+        if (!tmp.renameTo(rawFile(list))) { tmp.delete(); throw IOException("could not save") }
+        compiledFile(list).delete()
     }
 
     private fun delete(list: FilterList) {

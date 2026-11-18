@@ -12,7 +12,9 @@ class FilterListTest {
     fun aNewInstallHasTheTwoBundledListsOnAndEasyListAndEasyPrivacyOff() {
         val lists = FilterList.migrate(null, downloaded = false)
         assertEquals(listOf(FilterList.STEVENBLACK, FilterList.POPUPS, FilterList.EASYLIST, FilterList.EASYPRIVACY), lists.take(4).map { it.id })
-        assertTrue(lists.drop(4).none { it.enabled || it.bundled })
+        // The downloadable extras start off; My filters (local, the user's own rules) starts on.
+        assertTrue(lists.drop(4).filterNot { it.local }.none { it.enabled || it.bundled })
+        assertTrue(lists.single { it.local }.enabled)
         assertTrue(lists.filter { it.bundled }.all { it.enabled })
         assertTrue(lists.filter { it.stronger }.none { it.enabled || it.bundled })
     }

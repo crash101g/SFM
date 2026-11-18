@@ -72,6 +72,15 @@
 </section>
 
 <section>
+  <h2>My filters</h2>
+  <textarea id="filters" spellcheck="false" autocapitalize="off" autocorrect="off" style="height:160px;font:13px ui-monospace,monospace"
+    placeholder="Loading…"></textarea>
+  <div class="row"><button id="loadFilters">Reload</button><button class="primary" id="saveFilters">Save to TV</button></div>
+  <p class="hint">Your own ad-block rules (uBlock Origin syntax). @@||example.com^ never blocks a domain; ||example.com^
+    blocks one. They apply in the browser and Multiview as soon as you save.</p>
+</section>
+
+<section>
   <h2>Open on TV</h2>
   <input id="url" type="url" inputmode="url" autocapitalize="off" autocorrect="off" placeholder="Website or search">
   <div class="row"><button class="primary" id="open">Open</button></div>
@@ -202,6 +211,25 @@
   refreshFeeds();
   setInterval(refreshFeeds, 3000);
   document.addEventListener('visibilitychange', refreshFeeds);
+
+  // My filters: read from the TV when the page opens, saved back as JSON (rules are text, never script).
+  const loadFilters = async () => {
+    try {
+      const r = await fetch('/filters?t=' + encodeURIComponent(token));
+      if (r.ok) { $('filters').value = await r.text(); $('filters').placeholder = ''; }
+    } catch (e) { /* the TV is away */ }
+  };
+  $('loadFilters').onclick = loadFilters;
+  $('saveFilters').onclick = async () => {
+    try {
+      const r = await fetch('/filters?t=' + encodeURIComponent(token), { method: 'POST',
+        headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ text: $('filters').value }) });
+      if (r.status === 403) { status('Link expired: scan the QR code again'); return; }
+      const j = await r.json().catch(() => ({}));
+      status(r.ok ? 'Saved: ' + j.rules + ' rules' : 'The TV said no (too long?)');
+    } catch (e) { status('TV not reachable: is SFM open?'); }
+  };
+  loadFilters();
 
   $('open').onclick = async () => {
     const v = $('url').value.trim(); if (!v) return;

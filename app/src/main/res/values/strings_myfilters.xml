@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="my_filters">My filters</string>
+    <string name="my_filters_message">One rule per line: ||ads.example^ blocks a domain, example.com##.ad hides an element, @@||cdn.example^ never blocks it. Lines starting with ! are notes. Applies in the browser and Multiview as soon as you save.</string>
+    <string name="save">Save</string>
+    <plurals name="my_filters_saved">
+        <item quantity="one">My filters saved: %d rule</item>
+        <item quantity="other">My filters saved: %d rules</item>
+    </plurals>
+    <string name="my_filters_failed">Couldn\'t save My filters: %1$s</string>
+</resources>

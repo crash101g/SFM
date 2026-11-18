@@ -166,6 +166,14 @@ class PhoneServer(
                 actions.type(text); respondJson(s, true)
             }
             req.method == "POST" && req.path == "/key" -> respondJson(s, actions.key(req.query["k"] ?: ""))
+            // My filters: the user's own ad-block rules, read and saved from the phone (text only; never script).
+            req.method == "GET" && req.path == "/filters" -> respond(s, 200, "text/plain; charset=utf-8", myFilters() ?: "")
+            req.method == "POST" && req.path == "/filters" -> {
+                val text = extract(req.body, "text")
+                val rules = saveMyFilters(text)
+                respond(s, if (rules != null) 200 else 422, "application/json",
+                    JSONObject().put("ok", rules != null).put("rules", rules ?: 0).toString())
+            }
             req.method == "GET" && req.path == "/feeds" -> {
                 val feeds = actions.feeds()
                 val json = JSONObject().put("multiview", feeds != null)
@@ -184,6 +192,22 @@ class PhoneServer(
             }
             else -> respond(s, 404, "text/plain", "Not found")
         }
+    }
+
+    /** My filters' text, waiting for the ad blocker's worker; null if it doesn't answer in time. */
+    private fun myFilters(): String? {
+        val done = java.util.concurrent.CountDownLatch(1)
+        var text: String? = null
+        app.sofabrowser.adblock.AdBlocker.get(context).myFilters { text = it; done.countDown() }
+        return if (done.await(5, java.util.concurrent.TimeUnit.SECONDS)) text else null
+    }
+
+    /** Saves My filters; the number of rules, or null when it was refused (too long) or timed out. */
+    private fun saveMyFilters(text: String): Int? {
+        val done = java.util.concurrent.CountDownLatch(1)
+        var rules: Int? = null
+        app.sofabrowser.adblock.AdBlocker.get(context).setMyFilters(text) { r -> rules = r.getOrNull(); done.countDown() }
+        return if (done.await(20, java.util.concurrent.TimeUnit.SECONDS)) rules else null
     }
 
     private fun recordFailure(ip: String, now: Long) {

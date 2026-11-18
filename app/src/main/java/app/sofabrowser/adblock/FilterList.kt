@@ -25,6 +25,9 @@ data class FilterList(
 ) {
     val bundled: Boolean get() = asset != null
 
+    /** "My filters": the user's own rules, kept on the TV and edited in Settings (or from the phone), never downloaded. */
+    val local: Boolean get() = id == MY_FILTERS
+
     /** One of the lists behind "Stronger ad blocking", which go stale within days. */
     val stronger: Boolean get() = id in STRONGER
 
@@ -47,6 +50,29 @@ data class FilterList(
     }
 
     companion object {
+        const val MY_FILTERS = "my-filters"
+
+        /**
+         * What My filters starts with: how to write rules, and the exceptions a player needs that the hosts lists block.
+         * JW Player stops with "a problem providing access to protected content" without its licence check
+         * (entitlements.jwplayer.com) and analytics (jwpltx.com), and players served through Connatix need connatix.com.
+         */
+        val MY_FILTERS_DEFAULT = """
+            ! My filters: your own rules, in uBlock Origin / AdBlock Plus syntax. They apply in the browser and Multiview.
+            !   ||annoying-ad-host.com^          block a domain everywhere
+            !   example.com##.overlay-ad         hide an element on one site
+            !   @@||cdn-i-need.com^              never block this domain (beats every list)
+
+            ! JW Player (and players served by Connatix) stop with "a problem providing access to protected content"
+            ! when these are blocked.
+            @@||connatix.com^
+            @@||jwpltx.com^
+            @@||entitlements.jwplayer.com^
+        """.trimIndent() + "\n"
+
+        /** The most My filters keeps, in characters; lists far larger belong at an address (Add a filter list). */
+        const val MY_FILTERS_MAX = 64_000
+
         const val STEVENBLACK = "stevenblack"
         const val POPUPS = "hagezi-popups"
         const val STEVENBLACK_URL = "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"
@@ -92,7 +118,9 @@ data class FilterList(
             FilterList(POPUPS, "HaGeZi Pop-Up Ads", POPUPS_URL, AdBlocker.POPUP_ASSET),
             FilterList(EASYLIST, "EasyList", EASYLIST_URL, enabled = false),
             FilterList(EASYPRIVACY, "EasyPrivacy", EASYPRIVACY_URL, enabled = false),
-        ) + EXTRA_LISTS + ANNOYANCE_LISTS
+        ) + EXTRA_LISTS + ANNOYANCE_LISTS +
+            // The user's own rules. Order doesn't matter: an exception in any list beats a block in any other.
+            FilterList(MY_FILTERS, "My filters", null)
 
         /**
          * [stored] lists with the ones every install has added where missing; a list the user added by the address of

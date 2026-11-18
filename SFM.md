@@ -62,6 +62,19 @@ one).
 Web feeds start 3 s apart, since many stream sites fail when several players start at once. Nothing plays once you
 leave Multiview: the players and pages are released in `onStop`.
 
+### My filters
+
+Your own ad-block rules, in uBlock Origin / AdBlock Plus syntax, as in the desktop multiview's `my-filters.txt`. Edit
+them in Settings → **My filters** (also listed under Filter lists), or from the phone page's **My filters** box. They
+apply in the browser and Multiview as soon as they're saved. An exception (`@@||example.com^`) beats every list, as
+in uBlock.
+
+My filters starts with the exceptions JW Player needs, because the bundled StevenBlack hosts list blocks them:
+`@@||connatix.com^`, `@@||jwpltx.com^` and `@@||entitlements.jwplayer.com^` (its licence check). Without them, JW
+Player stops with "Playback error: There was a problem providing access to protected content", and auto-reload
+can't help. My filters is kept on the TV (`filters/my-filters.txt.gz`), never downloaded, and can't be removed, only
+edited or switched off.
+
 ## Security design
 
 These are deliberate. Changes must keep them; the unit tests in `app/src/test/java/app/sofabrowser/multiview` cover the

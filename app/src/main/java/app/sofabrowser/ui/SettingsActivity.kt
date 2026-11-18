@@ -139,6 +139,7 @@ class SettingsActivity : Activity() {
         listsRow = nav(R.string.filter_lists, rulesText(blocker.rules.rules)) {
             startActivity(Intent(this, SettingsActivity::class.java).putExtra(PAGE, PAGE_LISTS))
         }
+        nav(R.string.my_filters, rulesText(blocker.lists.firstOrNull { it.local }?.rules ?: 0)) { editMyFilters() }
         switch(R.string.cookies, R.string.cookies_sub, prefs::cookies, confirmOff = R.string.cookies_confirm)
         switch(R.string.third_party_cookies, R.string.third_party_cookies_sub, prefs::blockThirdPartyCookies)
         switch(R.string.gpc, R.string.gpc_sub, prefs::sendGpc)
@@ -484,10 +485,39 @@ class SettingsActivity : Activity() {
             }
         }
         if (l.bundled && l.updated > 0) actions += R.string.reset_bundled to { blocker.resetToBundled(l.id) { if (!isFinishing) buildLists() } }
-        if (!l.bundled) actions += R.string.remove to { blocker.remove(l.id) { if (!isFinishing) buildLists() } }
+        if (l.local) actions.add(0, R.string.edit to { editMyFilters() })
+        if (!l.bundled && !l.local) actions += R.string.remove to { blocker.remove(l.id) { if (!isFinishing) buildLists() } }
         dialog().setTitle(l.name)
             .setItems(actions.map { getString(it.first) }.toTypedArray()) { _, which -> actions[which].second() }
             .setNegativeButton(android.R.string.cancel, null).show()
+    }
+
+    /** My filters: the user's own rules, edited as text; saving makes them active at once. */
+    private fun editMyFilters() {
+        blocker.myFilters { text ->
+            if (isFinishing) return@myFilters
+            val field = EditText(this).apply {
+                setText(text)
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                isSingleLine = false
+                minLines = 6
+                maxLines = 12
+                typeface = android.graphics.Typeface.MONOSPACE
+                setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, 24.px.toFloat())
+                filters = arrayOf(android.text.InputFilter.LengthFilter(FilterList.MY_FILTERS_MAX))
+            }
+            dialog().setTitle(R.string.my_filters)
+                .setMessage(R.string.my_filters_message)
+                .setView(padded(field))
+                .setPositiveButton(R.string.save) { _, _ ->
+                    blocker.setMyFilters(field.text.toString()) { result ->
+                        result.onSuccess { n -> Toast.makeText(this, resources.getQuantityString(R.plurals.my_filters_saved, n, n), Toast.LENGTH_LONG).show() }
+                            .onFailure { Toast.makeText(this, getString(R.string.my_filters_failed, it.message), Toast.LENGTH_LONG).show() }
+                        if (!isFinishing && intent.getStringExtra(PAGE) == PAGE_LISTS) buildLists()
+                    }
+                }
+                .setNegativeButton(android.R.string.cancel, null).show()
+        }
     }
 
     private fun enterListAddress() {
