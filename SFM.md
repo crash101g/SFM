@@ -194,6 +194,25 @@ Rules it keeps (from `InPageBlocking`, unchanged):
 To check first: memory and CPU with four filtered tiles on the onn. The rule index is shared (one `AdBlocker`), so the
 extra cost should be the small per-page script, but it needs measuring on the TV.
 
+## Planned: page or video from the browser menu
+
+A future release, not started. Today the menu's **Add to Multiview** adds the page, and only the fullscreen video
+bar's **Send to Multiview** sends the video's stream. The menu button would offer both, without going fullscreen
+first:
+
+- **The choice:** on a page with a video, Add to Multiview asks **This page** or **Its video**. On a page without one
+  it adds the page as now, with no question.
+- **The same lookup and rules as Send to Multiview:** the video's own address, or the manifest its page fetched,
+  found as "Play in…" does. The tile asks for it with the page's headers and cookies (`PageHeaders`). Protected (DRM)
+  videos offer the page only, and private browsing still hides the button.
+- **A video that hasn't started:** the page often fetches its stream only once playback starts, so there may be
+  nothing to send yet. Then **Its video** says to start the video first (or adds the page instead) rather than
+  guessing at a file the page merely mentions, which may be an ad.
+- **The same hand-off:** in memory through `MultiviewInbox`, never in the intent.
+
+To check first: that `collectSources` (the page's report of its videos) works outside fullscreen, where the menu is
+used. Today it runs for the fullscreen video bar.
+
 ## Planned: RTSPS cameras (Wyze)
 
 A future feature, not started. Wyze cameras offer only RTSP (with the Wyze RTSP firmware), TLS-only on port 322, so
