@@ -60,7 +60,7 @@ class AdBlocker private constructor(private val context: Context) {
     init {
         worker.execute {
             lists = runCatching { loadOrMigrate() }.getOrDefault(FilterList.defaults())
-            runCatching { if (!rawFile(myList()).isFile) writeMyFilters(FilterList.MY_FILTERS_DEFAULT) }
+            runCatching { if (!rawFile(myList()).isFile || readMyFilters() in FilterList.MY_FILTERS_OLD_DEFAULTS) writeMyFilters(FilterList.MY_FILTERS_DEFAULT) }
             publish()
             ready = true
         }
@@ -220,8 +220,7 @@ class AdBlocker private constructor(private val context: Context) {
 
     /** The text of My filters ([FilterList.MY_FILTERS]), for editing; its default before the first start has written it. */
     fun myFilters(done: (String) -> Unit) = worker.execute {
-        val text = runCatching { GZIPInputStream(rawFile(myList()).inputStream()).bufferedReader().use { it.readText() } }
-            .getOrDefault(FilterList.MY_FILTERS_DEFAULT)
+        val text = runCatching { readMyFilters() }.getOrDefault(FilterList.MY_FILTERS_DEFAULT)
         main.post { done(text) }
     }
 
@@ -420,6 +419,8 @@ class AdBlocker private constructor(private val context: Context) {
     private fun myList() = lists.firstOrNull { it.local } ?: FilterList(FilterList.MY_FILTERS, "My filters", null)
 
     /** Writes My filters' text, gzipped as downloads are, so it compiles and caches like any list. */
+    private fun readMyFilters(): String = GZIPInputStream(rawFile(myList()).inputStream()).bufferedReader().use { it.readText() }
+
     private fun writeMyFilters(text: String) {
         dir.mkdirs()
         val list = myList()

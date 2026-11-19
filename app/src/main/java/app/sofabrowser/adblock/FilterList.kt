@@ -56,6 +56,7 @@ data class FilterList(
          * What My filters starts with: how to write rules, and the exceptions a player needs that the hosts lists block.
          * JW Player stops with "a problem providing access to protected content" without its licence check
          * (entitlements.jwplayer.com) and analytics (jwpltx.com), and players served through Connatix need connatix.com.
+         * It also hides in-page push ads, whose script is often part of the page itself, so blocking requests can't stop them.
          */
         val MY_FILTERS_DEFAULT = """
             ! My filters: your own rules, in uBlock Origin / AdBlock Plus syntax. They apply in the browser and Multiview.
@@ -68,7 +69,26 @@ data class FilterList(
             @@||connatix.com^
             @@||jwpltx.com^
             @@||entitlements.jwplayer.com^
+
+            ! "In-page push" ads: chat-bubble pop-ups (casino, dating, VPN offers) drawn over the page by its own script.
+            ##in-page-message
         """.trimIndent() + "\n"
+
+        /** Earlier versions' [MY_FILTERS_DEFAULT]: a My filters still exactly one of these was never edited, and is updated. */
+        val MY_FILTERS_OLD_DEFAULTS = setOf(
+            """
+            ! My filters: your own rules, in uBlock Origin / AdBlock Plus syntax. They apply in the browser and Multiview.
+            !   ||annoying-ad-host.com^          block a domain everywhere
+            !   example.com##.overlay-ad         hide an element on one site
+            !   @@||cdn-i-need.com^              never block this domain (beats every list)
+
+            ! JW Player (and players served by Connatix) stop with "a problem providing access to protected content"
+            ! when these are blocked.
+            @@||connatix.com^
+            @@||jwpltx.com^
+            @@||entitlements.jwplayer.com^
+            """.trimIndent() + "\n",
+        )
 
         /** The most My filters keeps, in characters; lists far larger belong at an address (Add a filter list). */
         const val MY_FILTERS_MAX = 64_000

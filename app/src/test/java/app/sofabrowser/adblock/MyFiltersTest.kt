@@ -54,13 +54,30 @@ class MyFiltersTest {
         assertTrue(with.blocks("https://ads.example/banner.js"))
     }
 
+    @Test fun theDefaultHidesInPagePushAdsOnEveryPage() {
+        val r = RuleSet.Builder().apply { add(compile(FilterList.MY_FILTERS_DEFAULT)); add(compile(hosts)) }.build()
+        for (page in listOf("https://stream.example/watch", "https://other.example/")) {
+            val hidden = r.cosmeticsFor(RequestUrl(page))?.selectors.orEmpty()
+            assertTrue(page, "in-page-message" in hidden)
+        }
+    }
+
+    @Test fun anUneditedEarlierDefaultIsUpdatedButNeverTheCurrentOne() {
+        assertFalse(FilterList.MY_FILTERS_DEFAULT in FilterList.MY_FILTERS_OLD_DEFAULTS)
+        // Earlier defaults had the player exceptions but not the bubble hiding.
+        for (old in FilterList.MY_FILTERS_OLD_DEFAULTS) {
+            assertTrue(old.contains("@@||entitlements.jwplayer.com^"))
+            assertFalse(old.contains("in-page-message"))
+        }
+    }
+
     @Test fun myFiltersCanAlsoBlock() {
         val r = RuleSet.Builder().apply { add(compile("||annoying.example^\n")); add(compile(hosts)) }.build()
         assertTrue(r.blocks("https://cdn.annoying.example/a.js"))
     }
 
-    @Test fun theDefaultIsWithinTheLimitAndHasThreeRules() {
+    @Test fun theDefaultIsWithinTheLimitAndHasFourRules() {
         assertTrue(FilterList.MY_FILTERS_DEFAULT.length < FilterList.MY_FILTERS_MAX)
-        assertEquals(3, compile(FilterList.MY_FILTERS_DEFAULT).rules)
+        assertEquals(4, compile(FilterList.MY_FILTERS_DEFAULT).rules)
     }
 }

@@ -17,6 +17,9 @@ import android.webkit.WebViewClient
 import app.sofabrowser.Prefs
 import app.sofabrowser.R
 import app.sofabrowser.adblock.AdBlocker
+import app.sofabrowser.adblock.Allowlist
+import app.sofabrowser.adblock.InPageBlocking
+import app.sofabrowser.browser.PageKey
 import app.sofabrowser.browser.WebViews
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
@@ -121,6 +124,11 @@ class WebTile(context: Context, index: Int, feed: Feed, private val gate: Reload
                 }
             }
             watching = WebViews.addDocumentStartScript(w, PageScripts.watch(watchKey))
+        }
+        // Element hiding and trap-link removal, as in the browser: the filter lists' "##" rules (My filters' too) in one
+        // style sheet per page. Off on sites the browser allows (ad blocking off there), like the network blocking.
+        InPageBlocking.install(w, PageKey(), blocker, active = { pageHost.let { it == null || !Allowlist.contains(context, it) } }) {
+            blocker.countBlocked()
         }
         w.webViewClient = Client()
         w.webChromeClient = Chrome()

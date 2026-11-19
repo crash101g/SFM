@@ -72,8 +72,11 @@ in uBlock.
 My filters starts with the exceptions JW Player needs, because the bundled StevenBlack hosts list blocks them:
 `@@||connatix.com^`, `@@||jwpltx.com^` and `@@||entitlements.jwplayer.com^` (its licence check). Without them, JW
 Player stops with "Playback error: There was a problem providing access to protected content", and auto-reload
-can't help. My filters is kept on the TV (`filters/my-filters.txt.gz`), never downloaded, and can't be removed, only
-edited or switched off.
+can't help. It also hides "in-page push" ads (`##in-page-message`): the chat-bubble pop-ups (casino, dating, VPN
+offers) some stream pages draw over the video with their own inline script, which no request block can stop. My
+filters is kept on the TV (`filters/my-filters.txt.gz`), never downloaded, and can't be removed, only edited or
+switched off. A My filters that is still exactly an earlier version's default (never edited) is updated to the
+current one at start; an edited one is never touched.
 
 ## Security design
 
@@ -158,7 +161,8 @@ and pull request. The APK is attached to the run as an artifact.
   play in a tile; add the page instead.
 - No RTSP: cameras must offer an https stream (HLS, DASH or progressive) that ExoPlayer plays. RTSPS is planned; see
   below.
-- No cosmetic filtering (element hiding) in web tiles, only network blocking. Planned; see below.
+- Cosmetic filtering in web tiles is element hiding and trap links only: "Remove element" choices and "Clean up this
+  site automatically" from the browser don't apply to tiles yet.
 
 ## Auto-reload for web feeds that never start
 
@@ -187,11 +191,12 @@ fakes it can only stop or cause reloads of its own feed, at most 3. `AutoReload`
 unit-tested), and the activity hands out turns. Without WebView's message listeners a tile just doesn't reload by
 itself.
 
-## Planned: cosmetic filtering in web tiles
+## Cosmetic filtering in web tiles
 
-A future release, not started. Web tiles block ad and tracker requests, but they don't hide the empty ad boxes,
-banners and overlays left behind, which the browser does. The browser's code for it is reusable as it is, so this is
-mostly wiring:
+Element hiding and trap links are built (1.2.4-sfm.4): each `WebTile` installs `InPageBlocking` with its own `PageKey`,
+as `Browser` does, and it is off on sites the browser allows, like the tiles' network blocking. Still to do:
+`RemovedElements` and `CleanUp` in tiles, and measuring memory and CPU with four filtered tiles on the onn. The
+original plan:
 
 - **Element hiding:** install `InPageBlocking` in each `WebTile`, with its own `PageKey`, as `Browser` does. It uses
   the filter lists' `##` rules, the page's own selectors plus the generic ones for the class and id names it sees,
