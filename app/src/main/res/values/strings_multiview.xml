@@ -59,6 +59,7 @@
     <string name="multiview_error_camera_https">Cameras on the home network have to use https.</string>
     <string name="multiview_error_login_phone">Camera logins aren\'t sent from the phone. Add the login on the TV.</string>
     <string name="multiview_error_bad_url">That isn\'t an address SFM can read.</string>
+    <string name="multiview_already">Already in Multiview as feed %1$d.</string>
     <string name="multiview_menu_bookmark">Bookmark these feeds</string>
     <string name="multiview_bookmark_saved">Bookmarked as “%1$s”. Open it from Bookmarks or the home screen to show these feeds.</string>
     <string name="multiview_bookmark_none">Nothing to bookmark: add a web page or stream first. Cameras aren’t bookmarked.</string>

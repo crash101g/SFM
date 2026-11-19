@@ -130,6 +130,17 @@ data class Feed(
                 userAgent = userAgent?.takeIf { it.isNotBlank() && it.length <= 512 && it.none { c -> c < ' ' } }))
         }
 
+        /**
+         * The slot already showing what [input] would add, or -1: the same address, or for a video sent from the
+         * browser ([frame] set) the same page. Multiview never shows one feed twice.
+         */
+        fun slotOf(feeds: List<Feed?>, input: String, frame: String?): Int {
+            val url = (parse(input) as? Parsed.Ok)?.feed?.url
+            return feeds.indexOfFirst { f ->
+                f != null && ((url != null && f.url == url) || (frame != null && (f.frame == frame || f.url == frame)))
+            }
+        }
+
         fun isStreamPath(path: String): Boolean {
             val p = path.lowercase()
             return STREAM_EXTENSIONS.any { p.endsWith(it) }

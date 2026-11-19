@@ -125,6 +125,14 @@ class MultiviewActivity : Activity() {
 
     /** Puts [input] in the first empty slot, or asks which feed to replace; the usual checks and camera trust apply. */
     private fun add(input: String, fromPhone: Boolean, video: MultiviewInbox.Handoff? = null) {
+        // Already here (added twice, or the button pressed again): no copy. A video sent again from the same page
+        // takes its old slot, with the fresh stream address.
+        val same = Feed.slotOf(feeds, input, video?.frame)
+        if (same >= 0) {
+            if (video != null) return save(same, input, feeds[same], fromPhone = fromPhone, video = video)
+            tiles.indexOfFirst { it.index == same }.takeIf { it >= 0 }?.let { selected = it; refreshMarks() }
+            return toast(getString(R.string.multiview_already, same + 1))
+        }
         val free = feeds.indexOfFirst { it == null }
         if (free >= 0) return save(free, input, null, fromPhone = fromPhone, video = video)
         val names = (0 until Feed.MAX).map { getString(R.string.multiview_slot, it + 1, feeds[it]?.label.orEmpty()) }
