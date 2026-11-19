@@ -37,6 +37,23 @@ abstract class Tile(context: Context, val index: Int, val feed: Feed) : FrameLay
 
     private val frame = View(context).apply { isClickable = false; isFocusable = false }
 
+    /** Clean view's sign that this tile just got the sound: a speaker for a moment, nothing else. */
+    private val badge = TextView(context).apply {
+        text = "🔊"
+        setTextSize(TypedValue.COMPLEX_UNIT_PX, 40.px.toFloat())
+        setBackgroundColor(0x99000000.toInt())
+        setPadding(16.px, 8.px, 16.px, 8.px)
+        visibility = GONE
+    }
+    private val hideBadge = Runnable { badge.visibility = GONE }
+
+    /** Shows the speaker badge for a moment. */
+    fun flashSound() {
+        main.removeCallbacks(hideBadge)
+        badge.visibility = VISIBLE
+        main.postDelayed(hideBadge, BADGE_MS)
+    }
+
     var audible = false
         set(v) {
             field = v
@@ -72,6 +89,9 @@ abstract class Tile(context: Context, val index: Int, val feed: Feed) : FrameLay
             addView(title, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.START))
             addView(status, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.CENTER))
             addView(frame, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+            addView(badge, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT, Gravity.TOP or Gravity.START).apply {
+                setMargins(16.px, 16.px, 0, 0)
+            })
         }
         updateTitle()
     }
@@ -98,4 +118,8 @@ abstract class Tile(context: Context, val index: Int, val feed: Feed) : FrameLay
 
     /** A press in the middle of the feed, for players that wait for a click. Only web tiles have one. */
     open fun tap() {}
+
+    private companion object {
+        const val BADGE_MS = 1_500L
+    }
 }

@@ -69,6 +69,11 @@ class FeedStore(context: Context) {
         get() = prefs.getBoolean("auto_reload", true)
         set(v) = prefs.edit().putBoolean("auto_reload", v).apply()
 
+    /** Clean view: no title bars or selection frame, and Left/Right move the sound (off by default). */
+    var clean: Boolean
+        get() = prefs.getBoolean("clean", false)
+        set(v) = prefs.edit().putBoolean("clean", v).apply()
+
     /** Which tile (0–3) has the sound; -1 when all are muted. */
     var audio: Int
         get() = prefs.getInt("audio", 0)

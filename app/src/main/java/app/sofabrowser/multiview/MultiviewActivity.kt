@@ -49,6 +49,8 @@ class MultiviewActivity : Activity() {
     private var selected = 0
     private var audio = 0
     private var titles = true
+    /** Clean view ([FeedStore.clean]): no title bars or frame, and Left/Right give the sound to that side. */
+    private var clean = false
     private var okDownAt = -1L
     private var menuFromHold = false
 
@@ -77,6 +79,7 @@ class MultiviewActivity : Activity() {
         super.onStart()
         feeds = store.load().toMutableList()
         audio = store.audio
+        clean = store.clean
         buildTiles()
         phone.start()
     }
@@ -164,7 +167,7 @@ class MultiviewActivity : Activity() {
         empty.visibility = if (present.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE
         present.forEachIndexed { pos, (i, feed) ->
             val tile = if (feed!!.kind == Feed.Kind.WEB) WebTile(this, i, feed, reloadGate) else StreamTile(this, i, feed)
-            tile.titlesShown = titles
+            tile.titlesShown = titles && !clean
             tiles += tile
             grid.addView(tile)
             // Many stream sites fail when several players start at once; web feeds start a few seconds apart.
@@ -184,7 +187,7 @@ class MultiviewActivity : Activity() {
 
     private fun refreshMarks() {
         tiles.forEachIndexed { pos, t ->
-            t.highlighted = pos == selected && tiles.size > 1
+            t.highlighted = pos == selected && tiles.size > 1 && !clean
             t.audible = t.index == audio
         }
     }
@@ -236,6 +239,7 @@ class MultiviewActivity : Activity() {
     }
 
     private fun move(dx: Int, dy: Int) {
+        if (clean && grid.solo < 0) return moveSound(dx, dy)
         if (tiles.size < 2 || grid.solo >= 0) return
         val cols = 2
         val col = selected % cols + dx
@@ -245,6 +249,27 @@ class MultiviewActivity : Activity() {
         if (next !in tiles.indices || (tiles.size == 2 && dy != 0)) return
         selected = next
         refreshMarks()
+    }
+
+    /** Clean view: the tile to that side (or this one, at the edge) is picked and gets the sound; the rest are muted. */
+    private fun moveSound(dx: Int, dy: Int) {
+        if (tiles.isEmpty()) return
+        val cols = 2
+        val col = selected % cols + dx
+        val row = selected / cols + dy
+        val next = row * cols + col
+        if (col in 0 until cols && row >= 0 && next in tiles.indices && !(tiles.size == 2 && dy != 0)) selected = next
+        val tile = tiles[selected]
+        if (audio != tile.index) { audio = tile.index; store.audio = audio; refreshMarks() }
+        tile.flashSound()
+    }
+
+    private fun setClean(on: Boolean) {
+        clean = on
+        store.clean = on
+        tiles.forEach { it.titlesShown = titles && !clean }
+        refreshMarks()
+        if (on) toast(getString(R.string.multiview_clean_hint))
     }
 
     private fun showMenu() {
@@ -260,7 +285,8 @@ class MultiviewActivity : Activity() {
         items += getString(R.string.multiview_menu_mute) to { audio = -1; store.audio = -1; refreshMarks() }
         items += getString(if (store.autoReload) R.string.multiview_menu_autoreload_on else R.string.multiview_menu_autoreload_off) to
             { store.autoReload = !store.autoReload }
-        items += getString(R.string.multiview_menu_titles) to { titles = !titles; tiles.forEach { it.titlesShown = titles } }
+        items += getString(if (clean) R.string.multiview_menu_clean_on else R.string.multiview_menu_clean_off) to { setClean(!clean) }
+        if (!clean) items += getString(R.string.multiview_menu_titles) to { titles = !titles; tiles.forEach { it.titlesShown = titles } }
         items += getString(R.string.multiview_menu_edit) to { editFeeds() }
         items += getString(R.string.multiview_menu_bookmark) to { bookmarkFeeds() }
         items += getString(R.string.multiview_menu_phone) to { phone.pairDialog() }

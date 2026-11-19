@@ -31,6 +31,11 @@ One feed fills the screen, two sit side by side, three or four make a 2×2 grid.
 | 1–4 / 0 | Sound to feed 1–4 / mute all |
 | Back | Leave full screen, then Multiview |
 
+**Clean view** (Menu → **Clean view: on**, remembered): no title bars and no orange frame, just the feeds. Left and
+Right give the sound to that side at once and mute the others; a speaker shows on the tile for a moment. OK still
+mutes or unmutes, and Menu still has everything else. Players' own buttons inside a page (an "Unmute" button, say)
+belong to the page; hide one with a My filters rule such as `player.example###unmute`.
+
 ### From the browser
 
 In SFM's browser, the menu's **Add to Multiview** button (the four-tile icon, next to **Add to home**) adds the page
