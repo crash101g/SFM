@@ -88,9 +88,8 @@ class ListActivity : Activity() {
             }
         } else {
             db.bookmarks().forEach { b ->
-                // A Multiview bookmark can be renamed here, its name being all that tells one set of feeds from another.
-                val rename = if (MultiviewBookmark.isOne(b.url)) { shown: TextView -> renameBookmark(b.url, shown) } else null
-                addRow(b.title, b.url, null, rename) { db.removeBookmark(b.url) }
+                // Any bookmark can be renamed; its address (or a Multiview bookmark's feeds) stays shown under the name.
+                addRow(b.title, b.url, null, { shown: TextView -> renameBookmark(b.url, shown) }) { db.removeBookmark(b.url) }
             }
         }
         empty.visibility = if (list.childCount == 0) View.VISIBLE else View.GONE
@@ -111,7 +110,7 @@ class ListActivity : Activity() {
     }
 
     private fun renameBookmark(url: String, shown: TextView) {
-        val default = MultiviewBookmark.title(MultiviewBookmark.feeds(url))
+        val default = if (MultiviewBookmark.isOne(url)) MultiviewBookmark.title(MultiviewBookmark.feeds(url)) else UrlInput.display(url)
         val input = EditText(this).apply {
             setText(shown.text)
             setHint(R.string.multiview_bookmark_name_hint)
@@ -154,17 +153,21 @@ class ListActivity : Activity() {
         val texts = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val titleView = Ui.text(this, 34, Ui.p.text).apply { text = title.ifBlank { url }; maxLines = 1; ellipsize = TextUtils.TruncateAt.END }
         texts.addView(titleView)
-        val where = if (MultiviewBookmark.isOne(url)) MultiviewBookmark.feeds(url).size.let {
-            resources.getQuantityString(R.plurals.multiview_bookmark_feeds, it, it)
-        } else UrlInput.display(url)
+        // A Multiview bookmark lists its feeds, one per line; any other shows its address.
+        val feeds = if (MultiviewBookmark.isOne(url)) MultiviewBookmark.feeds(url) else null
+        val where = feeds?.let { f ->
+            resources.getQuantityString(R.plurals.multiview_bookmark_feeds, f.size, f.size) + "\n" +
+                f.withIndex().joinToString("\n") { (i, feed) -> "${i + 1}  " + UrlInput.display(feed.url) }
+        } ?: UrlInput.display(url)
         texts.addView(Ui.text(this, 24, Ui.p.textWeak).apply {
             text = listOfNotNull(meta, where).joinToString("  ·  ")
-            maxLines = 1
+            maxLines = if (feeds != null) feeds.size + 1 else 1
             ellipsize = TextUtils.TruncateAt.MIDDLE
             setPadding(0, 10.px, 0, 0)
         })
         body.addView(texts, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        line.addView(body, LinearLayout.LayoutParams(0, 136.px, 1f))
+        if (feeds != null) { body.minimumHeight = 136.px; body.setPadding(40.px, 20.px, 40.px, 20.px) }
+        line.addView(body, LinearLayout.LayoutParams(0, if (feeds != null) LinearLayout.LayoutParams.WRAP_CONTENT else 136.px, 1f))
 
         val remove = FrameLayout(this).apply {
             isFocusable = true
