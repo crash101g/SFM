@@ -94,6 +94,11 @@ class WebTile(context: Context, index: Int, feed: Feed, private val gate: Reload
         if (app.sofabrowser.BuildConfig.DEBUG) WebView.setWebContentsDebuggingEnabled(true)
         val w = WebView(context)
         WebViews.configure(w, Prefs(context))
+        // Tiles present as what the TV is, Chrome on Android, whatever the browser's user-agent setting. Its default,
+        // desktop Chrome on Windows, doesn't match what pages can see of an ARM TV (navigator.platform, no
+        // window.chrome), and bot checks such as Cloudflare Turnstile refuse that, so stream pages that need one
+        // never get their stream.
+        WebViews.applyUserAgent(w, TILE_USER_AGENT, "")
         w.settings.javaScriptEnabled = true
         w.settings.mediaPlaybackRequiresUserGesture = false
         w.settings.setSupportMultipleWindows(true)
@@ -259,5 +264,7 @@ class WebTile(context: Context, index: Int, feed: Feed, private val gate: Reload
 
     private companion object {
         const val TICK_MS = 2_000L
+        /** [WebViews.applyUserAgent]'s mode for Chrome on Android, with client hints to match. */
+        const val TILE_USER_AGENT = "mobile"
     }
 }

@@ -97,6 +97,12 @@ rest of the API, plus `navigator.mediaDevices`/`getUserMedia`, as non-configurab
 microphone, MIDI, protected media …) and geolocation is denied. On WebViews without document-start scripts it falls back
 to injecting at page start, which is weaker. Unlike the desktop app, there is no switch to turn WebRTC on.
 
+**User agent.** Web tiles always present as Chrome on Android (the browser's "mobile" mode, with client hints to
+match), whatever the browser's own user-agent setting. The browser's default, desktop Chrome on Windows, doesn't match
+what a page can see of an ARM TV (`navigator.platform`, no `window.chrome`), and bot checks such as Cloudflare
+Turnstile refuse the mismatch; stream pages behind one then never get their stream token, and JW Player shows "There
+was a problem providing access to protected content" (its message for a 403 on the stream).
+
 **Ad blocking.** Sofa's `AdBlocker` filters every subresource of every frame.
 
 **Camera cert pinning.** Camera tiles are https only, and a login in the address makes a feed a camera, so logins never
