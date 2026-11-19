@@ -34,6 +34,13 @@ object MultiviewBookmark {
     /** The bookmark's title: "Multiview: site, site". */
     fun title(feeds: List<Feed>) = "Multiview: " + feeds.joinToString(", ") { it.host.removePrefix("www.") }
 
+    /** The most a bookmark's name keeps, in characters. */
+    const val MAX_NAME = 80
+
+    /** The name typed for a bookmark: trimmed, on one line, at most [MAX_NAME] characters; [default] when left blank. */
+    fun name(typed: String, default: String): String =
+        typed.replace(Regex("\\s+"), " ").trim().take(MAX_NAME).trim().ifEmpty { default }
+
     /** The feeds in a bookmark address, in order; empty if it holds none that may be used. */
     fun feeds(url: String): List<Feed> {
         if (!isOne(url)) return emptyList()

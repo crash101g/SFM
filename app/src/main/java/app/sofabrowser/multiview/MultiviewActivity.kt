@@ -119,11 +119,31 @@ class MultiviewActivity : Activity() {
     /** Saves the current feeds as one bookmark that opens Multiview with them ([MultiviewBookmark]). */
     private fun bookmarkFeeds() {
         val url = MultiviewBookmark.of(feeds) ?: return toast(getString(R.string.multiview_bookmark_none))
-        val title = MultiviewBookmark.title(MultiviewBookmark.feeds(url))
-        app.sofabrowser.data.Db.get(this).addBookmark(title, url)
-        val left = MultiviewBookmark.leftOut(feeds)
-        toast(getString(R.string.multiview_bookmark_saved, title) +
-            if (left > 0) "\n" + resources.getQuantityString(R.plurals.multiview_bookmark_cameras, left, left) else "")
+        val db = app.sofabrowser.data.Db.get(this)
+        val default = MultiviewBookmark.title(MultiviewBookmark.feeds(url))
+        // Its name: the one it has if this set is bookmarked already, else "Multiview: site, site" to change.
+        val input = EditText(this).apply {
+            setText(db.bookmarkTitle(url) ?: default)
+            setHint(R.string.multiview_bookmark_name_hint)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+            imeOptions = EditorInfo.IME_ACTION_DONE
+            isSingleLine = true
+            filters = arrayOf(android.text.InputFilter.LengthFilter(MultiviewBookmark.MAX_NAME))
+            selectAll()
+        }
+        Ui.dialog(this)
+            .setTitle(R.string.multiview_bookmark_name_title)
+            .setView(FrameLayout(this).apply { setPadding(48.px, 16.px, 48.px, 0); addView(input) })
+            .setPositiveButton(R.string.multiview_bookmark_save) { _, _ ->
+                val title = MultiviewBookmark.name(input.text.toString(), default)
+                db.addBookmark(title, url)
+                val left = MultiviewBookmark.leftOut(feeds)
+                toast(getString(R.string.multiview_bookmark_saved, title) +
+                    if (left > 0) "\n" + resources.getQuantityString(R.plurals.multiview_bookmark_cameras, left, left) else "")
+            }
+            .setNegativeButton(R.string.multiview_cancel, null)
+            .show()
+        input.requestFocus()
     }
 
     /** Puts [input] in the first empty slot, or asks which feed to replace; the usual checks and camera trust apply. */

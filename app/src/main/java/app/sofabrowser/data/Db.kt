@@ -97,6 +97,14 @@ class Db private constructor(context: Context) : SQLiteOpenHelper(context, "sofa
         }, SQLiteDatabase.CONFLICT_REPLACE)
     }
 
+    /** The bookmark's title, or null if [url] isn't bookmarked. */
+    fun bookmarkTitle(url: String): String? =
+        readableDatabase.rawQuery("SELECT title FROM bookmarks WHERE url = ?", arrayOf(url)).use { if (it.moveToFirst()) it.getString(0) else null }
+
+    fun renameBookmark(url: String, title: String) {
+        writableDatabase.update("bookmarks", ContentValues().apply { put("title", title) }, "url = ?", arrayOf(url))
+    }
+
     fun removeBookmark(url: String) {
         writableDatabase.delete("bookmarks", "url = ?", arrayOf(url))
     }

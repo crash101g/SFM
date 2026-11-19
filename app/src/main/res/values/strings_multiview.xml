@@ -65,6 +65,14 @@
     <string name="multiview_clean_hint">Clean view: Left or Right plays that side’s sound. OK mutes or unmutes; Menu for the rest.</string>
     <string name="multiview_menu_bookmark">Bookmark these feeds</string>
     <string name="multiview_bookmark_saved">Bookmarked as “%1$s”. Open it from Bookmarks or the home screen to show these feeds.</string>
+    <string name="multiview_bookmark_name_title">Name this bookmark</string>
+    <string name="multiview_bookmark_name_hint">For example: News, or Saturday games</string>
+    <string name="multiview_bookmark_save">Save</string>
+    <string name="multiview_bookmark_rename">Rename</string>
+    <plurals name="multiview_bookmark_feeds">
+        <item quantity="one">Multiview · %d feed</item>
+        <item quantity="other">Multiview · %d feeds</item>
+    </plurals>
     <string name="multiview_bookmark_none">Nothing to bookmark: add a web page or stream first. Cameras aren’t bookmarked.</string>
     <plurals name="multiview_bookmark_cameras">
         <item quantity="one">%d camera left out: camera logins stay only in Multiview.</item>

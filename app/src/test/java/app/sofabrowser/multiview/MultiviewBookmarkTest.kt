@@ -49,4 +49,10 @@ class MultiviewBookmarkTest {
         assertEquals(emptyList<Feed>(), MultiviewBookmark.feeds("https://a.example/"))
         assertEquals(emptyList<Feed>(), MultiviewBookmark.feeds(MultiviewBookmark.PREFIX + "f=%E0%A4%A"))
     }
+
+    @Test fun aNameIsTidiedAndBlankMeansTheDefault() {
+        assertEquals("Saturday games", MultiviewBookmark.name("  Saturday\n  games  ", "Multiview: a"))
+        assertEquals("Multiview: a", MultiviewBookmark.name("   ", "Multiview: a"))
+        assertEquals(MultiviewBookmark.MAX_NAME, MultiviewBookmark.name("x".repeat(500), "d").length)
+    }
 }

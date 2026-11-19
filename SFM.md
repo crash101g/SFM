@@ -69,7 +69,9 @@ leave Multiview: the players and pages are released in `onStop`.
 
 ### Multiview bookmarks
 
-Menu → **Bookmark these feeds** saves the feeds on screen as one bookmark ("Multiview: site, site"). Opening it from
+Menu → **Bookmark these feeds** saves the feeds on screen as one bookmark, under a name you give it (it suggests
+"Multiview: site, site", or the name the same set already has). Rename one later with the pencil button beside it in
+Bookmarks, where it shows as "Multiview · 4 feeds" instead of its address. Opening it from
 Bookmarks, the home screen or the address bar's suggestions opens Multiview with exactly those feeds, so you can keep
 several sets and switch between them. If that would remove a feed the bookmark doesn't have, Multiview asks first.
 
