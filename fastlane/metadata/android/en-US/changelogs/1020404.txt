@@ -1,0 +1,1 @@
+Multiview: tiles get past Cloudflare's bot check, hide ad boxes and chat-bubble pop-up ads, and Clean view shows just the feeds, with Left/Right moving the sound without pausing either feed. Menu > Bookmark these feeds saves a set of feeds as one bookmark. Add to Multiview no longer adds copies.

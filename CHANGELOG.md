@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.2.4-sfm.4 (2026-11-19)
+
+- **Fix: stream pages behind Cloudflare's bot check now play in Multiview.** Web tiles took the browser's user agent,
+  by default desktop Chrome on Windows, which doesn't match what pages can see of the TV. Cloudflare Turnstile
+  refused that, so the page never got its stream and JW Player showed "There was a problem providing access to
+  protected content". Tiles now present as Chrome on Android, which is what the TV is. The browser's own setting is
+  unchanged.
+- **Element hiding in Multiview web tiles:** the filter lists' and My filters' `##` rules now hide ad boxes and
+  overlays in tiles, as in the browser, and invisible page-covering ad links are removed. Off on sites you allowed in
+  the browser.
+- **No more chat-bubble pop-up ads:** My filters now also hides "in-page push" ads (`##in-page-message`), the casino,
+  dating and VPN bubbles some stream pages draw over the video. If you never edited My filters, it gets the new rule
+  by itself; if you did, add `##in-page-message` to it.
+- **Multiview bookmarks:** Menu → **Bookmark these feeds** saves the feeds on screen as one bookmark; opening it
+  shows those feeds side by side. Web pages and streams only; camera logins never go into a bookmark.
+- **Fix: Add to Multiview no longer adds copies.** A page already in Multiview opens it with that feed picked
+  ("Already in Multiview as feed 2") instead of filling the empty slots with copies; a video sent again from the same
+  page replaces its old copy.
+- **Clean view in Multiview** (Menu → Clean view): no title bars or selection frame, just the feeds. Left and Right
+  play that side's sound and mute the other; OK mutes or unmutes.
+- **Fix: moving the sound no longer pauses a feed.** Each tile is its own media session, and Android paused the tile
+  that lost audio focus when another got the sound; a video paused just after a switch is now started again.
+- **Fix:** removing the feed that had the sound gives it to the first feed left, instead of leaving every tile muted.
+
 ## 1.2.4-sfm.3 (2026-11-18)
 
 - **My filters:** your own ad-block rules in uBlock syntax, edited in Settings → My filters or from the phone
