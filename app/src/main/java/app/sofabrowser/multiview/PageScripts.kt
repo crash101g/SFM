@@ -52,12 +52,21 @@ object PageScripts {
 
     /**
      * Sound: one tile has it. Every frame keeps its audio and video elements muted until SFM says otherwise, also when
-     * the page tries to unmute them; the top frame passes the setting down to its frames.
+     * the page tries to unmute them; the top frame passes the setting down to its frames. Moving the sound must not stop
+     * a feed: each tile is its own media session, and Android pauses the one that loses audio focus, so a video paused
+     * just after a switch is started again (muted, it doesn't take focus back).
      */
     val MUTE = """
         (function () {
           if (window.__sfmSetMuted) return;
           var muted = true;
+          // When SFM last switched the sound. Android gives audio focus to the tile that starts making sound, and the
+          // WebView pauses the one that loses it; a video paused within KEEP_MS of a switch is started again.
+          var switched = 0, KEEP_MS = 15000;
+          function resume(v) {
+            if (v.ended || !v.paused || Date.now() - switched > KEEP_MS) return;
+            try { var p = v.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+          }
           function media(t) { return t && (t.tagName === 'VIDEO' || t.tagName === 'AUDIO'); }
           function apply() {
             try {
@@ -65,6 +74,7 @@ object PageScripts {
               for (var i = 0; i < els.length; i++) {
                 if (els[i].muted !== muted) els[i].muted = muted;
                 if (!muted && els[i].volume === 0) els[i].volume = 1;
+                if (els[i].paused && els[i].currentTime > 0) resume(els[i]);
               }
             } catch (e) {}
           }
@@ -73,9 +83,14 @@ object PageScripts {
               try { window.frames[i].postMessage({ __sfmMute: muted }, '*'); } catch (e) {}
             }
           }
-          function set(m) { muted = !!m; apply(); relay(); }
+          // Only a real change counts as a switch: the top frame repeats the setting to its frames every 2 s.
+          function set(m) { if (muted !== !!m) switched = Date.now(); muted = !!m; apply(); relay(); }
           document.addEventListener('play', function (e) { if (media(e.target)) e.target.muted = muted; }, true);
           document.addEventListener('playing', function (e) { if (media(e.target)) e.target.muted = muted; }, true);
+          document.addEventListener('pause', function (e) {
+            var v = e.target;
+            if (media(v)) setTimeout(function () { resume(v); }, 300);
+          }, true);
           document.addEventListener('volumechange', function (e) {
             if (media(e.target) && e.target.muted !== muted) e.target.muted = muted;
           }, true);
