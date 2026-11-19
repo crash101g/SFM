@@ -394,6 +394,8 @@ class MultiviewActivity : Activity() {
         feeds[i] = feed
         store.save(feeds)
         if (feed != null && feeds.count { it != null } == 1) { audio = i; store.audio = i }
+        // The feed with the sound was removed: the first one left gets it, rather than nothing being heard.
+        if (feed == null && audio == i) feeds.indexOfFirst { it != null }.let { audio = it; store.audio = it }
         buildTiles()
     }
 
