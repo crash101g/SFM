@@ -211,6 +211,9 @@ class MainActivity : Activity(), HomeView.Listener, Browser.Host, BrowserMenu.Ac
 
     private fun openUrl(url: String) {
         if (url.isBlank()) return
+        // A Multiview bookmark. Links from other apps and the phone are http(s) only, so only the user's own
+        // bookmarks, home screen and address bar get here with one.
+        if (app.sofabrowser.multiview.MultiviewBookmark.isOne(url)) return openMultiviewBookmark(url)
         ensureWeb()
         showBrowser()
         browser.userNavigation()
@@ -220,6 +223,13 @@ class MainActivity : Activity(), HomeView.Listener, Browser.Host, BrowserMenu.Ac
         } else {
             web?.loadUrl(url)
         }
+    }
+
+    private fun openMultiviewBookmark(url: String) {
+        val feeds = app.sofabrowser.multiview.MultiviewBookmark.feeds(url)
+        if (feeds.isEmpty()) return toast(R.string.multiview_bookmark_empty)
+        app.sofabrowser.multiview.MultiviewInbox.put(app.sofabrowser.multiview.MultiviewInbox.Handoff(url, feeds = feeds))
+        startActivity(Intent(this, app.sofabrowser.multiview.MultiviewActivity::class.java))
     }
 
     private fun showBrowser() {

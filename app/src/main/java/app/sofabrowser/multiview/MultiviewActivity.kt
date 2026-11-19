@@ -84,7 +84,43 @@ class MultiviewActivity : Activity() {
     override fun onResume() {
         super.onResume()
         // "Add to Multiview" from the browser (in memory, never from the intent).
-        MultiviewInbox.take()?.let { add(it.url, fromPhone = false, video = it.takeIf { h -> h.video }) }
+        MultiviewInbox.take()?.let { h ->
+            if (h.feeds != null) showBookmark(h.feeds) else add(h.url, fromPhone = false, video = h.takeIf { it.video })
+        }
+    }
+
+    /**
+     * A Multiview bookmark: shows its [set] instead of the current feeds. Asks first if that would drop a feed the
+     * bookmark doesn't have (a camera's login and trusted certificate would go with it).
+     */
+    private fun showBookmark(set: List<Feed>) {
+        val urls = set.map { it.url }.toSet()
+        val dropped = feeds.filterNotNull().filter { it.url !in urls && it.frame !in urls }
+        val apply = {
+            feeds = (set + List(Feed.MAX - set.size) { null }).toMutableList()
+            store.save(feeds)
+            if (audio >= set.size) { audio = 0; store.audio = 0 }
+            selected = 0
+            buildTiles()
+        }
+        if (set.map { it.url } == feeds.map { it?.url }.filterNotNull() && feeds.drop(set.size).all { it == null }) return
+        if (dropped.isEmpty()) return apply()
+        Ui.dialog(this)
+            .setTitle(R.string.multiview_bookmark_replace_title)
+            .setMessage(getString(R.string.multiview_bookmark_replace_message, dropped.joinToString("\n") { it.label }))
+            .setPositiveButton(R.string.multiview_bookmark_replace) { _, _ -> apply() }
+            .setNegativeButton(R.string.multiview_cancel, null)
+            .show()
+    }
+
+    /** Saves the current feeds as one bookmark that opens Multiview with them ([MultiviewBookmark]). */
+    private fun bookmarkFeeds() {
+        val url = MultiviewBookmark.of(feeds) ?: return toast(getString(R.string.multiview_bookmark_none))
+        val title = MultiviewBookmark.title(MultiviewBookmark.feeds(url))
+        app.sofabrowser.data.Db.get(this).addBookmark(title, url)
+        val left = MultiviewBookmark.leftOut(feeds)
+        toast(getString(R.string.multiview_bookmark_saved, title) +
+            if (left > 0) "\n" + resources.getQuantityString(R.plurals.multiview_bookmark_cameras, left, left) else "")
     }
 
     /** Puts [input] in the first empty slot, or asks which feed to replace; the usual checks and camera trust apply. */
@@ -218,6 +254,7 @@ class MultiviewActivity : Activity() {
             { store.autoReload = !store.autoReload }
         items += getString(R.string.multiview_menu_titles) to { titles = !titles; tiles.forEach { it.titlesShown = titles } }
         items += getString(R.string.multiview_menu_edit) to { editFeeds() }
+        items += getString(R.string.multiview_menu_bookmark) to { bookmarkFeeds() }
         items += getString(R.string.multiview_menu_phone) to { phone.pairDialog() }
         Ui.dialog(this)
             .setTitle(tile.feed.label)

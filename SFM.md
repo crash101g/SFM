@@ -62,6 +62,19 @@ one).
 Web feeds start 3 s apart, since many stream sites fail when several players start at once. Nothing plays once you
 leave Multiview: the players and pages are released in `onStop`.
 
+### Multiview bookmarks
+
+Menu → **Bookmark these feeds** saves the feeds on screen as one bookmark ("Multiview: site, site"). Opening it from
+Bookmarks, the home screen or the address bar's suggestions opens Multiview with exactly those feeds, so you can keep
+several sets and switch between them. If that would remove a feed the bookmark doesn't have, Multiview asks first.
+
+It holds web pages and streams only: cameras are left out, so camera logins and trusted certificates stay in the
+encrypted feed list and never reach the bookmarks database. A video sent from the browser is bookmarked as its page,
+since its stream address doesn't last. Only the browser's own bookmark, home-screen and address-bar choices open one
+(address `sfm:multiview?f=…`): links from other apps and the phone are http(s) only, and pages can't navigate to it.
+Each address in it goes through the phone's feed rules when opened (http(s) only, no logins, nothing that would be a
+camera), so an edited bookmark can't add more.
+
 ### My filters
 
 Your own ad-block rules, in uBlock Origin / AdBlock Plus syntax, as in the desktop multiview's `my-filters.txt`. Edit

@@ -9,9 +9,12 @@ package app.sofabrowser.multiview
  */
 object MultiviewInbox {
 
-    /** What the browser hands over: an address, and for a video the page and browser it was fetched by. */
+    /**
+     * What the browser hands over: an address, and for a video the page and browser it was fetched by; or, from a
+     * Multiview bookmark ([MultiviewBookmark]), a whole set of [feeds] to show instead of the current ones.
+     */
     data class Handoff(val url: String, val video: Boolean = false, val frame: String? = null, val media: Boolean = false,
-                       val userAgent: String? = null)
+                       val userAgent: String? = null, val feeds: List<Feed>? = null)
 
     private var pending: Handoff? = null
     private var at = 0L
