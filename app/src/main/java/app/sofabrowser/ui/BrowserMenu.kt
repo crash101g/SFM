@@ -22,7 +22,7 @@ import app.sofabrowser.R
 class BrowserMenu(context: Context, private val actions: Actions) : Dialog(context, android.R.style.Theme_Translucent_NoTitleBar) {
 
     enum class Action { HOME, WATCH, AUTO_WATCH, BACK, FORWARD, RELOAD, FIND, BOOKMARK, PIN, HISTORY, BOOKMARKS, DOWNLOADS, ADBLOCK, ALLOW_ONCE, USER_AGENT, SCROLL, POINTER, ZOOM_OUT, ZOOM_IN, SETTINGS,
-        CLEAN_UP, PHONE, MULTIVIEW }
+        CLEAN_UP, PHONE, MULTIVIEW, SOUND }
 
     interface Actions {
         fun onAddress()
@@ -109,6 +109,8 @@ class BrowserMenu(context: Context, private val actions: Actions) : Dialog(conte
         add(Action.HOME, R.drawable.ic_home, R.string.home)
         // Watch is the action a TV is most often used for: next to Home.
         add(Action.WATCH, R.drawable.ic_play_circle, R.string.watch)
+        // Sound on or off for the page's video, also one the page started muted, without reaching its own buttons.
+        add(Action.SOUND, R.drawable.ic_volume_up, R.string.sound_on_off)
         add(Action.BACK, R.drawable.ic_arrow_back, R.string.back)
         add(Action.FORWARD, R.drawable.ic_arrow_forward, R.string.forward)
         add(Action.RELOAD, R.drawable.ic_refresh, R.string.reload)

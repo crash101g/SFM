@@ -59,6 +59,8 @@
     <string name="multiview_error_camera_https">Cameras on the home network have to use https.</string>
     <string name="multiview_error_login_phone">Camera logins aren\'t sent from the phone. Add the login on the TV.</string>
     <string name="multiview_error_bad_url">That isn\'t an address SFM can read.</string>
+    <string name="mute_unmute">Mute or unmute</string>
+    <string name="sound_on_off">Sound on/off</string>
     <string name="multiview_already">Already in Multiview as feed %1$d.</string>
     <string name="multiview_menu_clean_off">Clean view: off</string>
     <string name="multiview_menu_clean_on">Clean view: on</string>

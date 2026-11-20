@@ -583,6 +583,7 @@ class MainActivity : Activity(), HomeView.Listener, Browser.Host, BrowserMenu.Ac
             BrowserMenu.Action.FORWARD -> if (w.canGoForward()) browser.goForward()
             BrowserMenu.Action.RELOAD -> { if (loading) w.stopLoading() else browser.reload(); menu?.dismiss() }
             BrowserMenu.Action.WATCH -> watch()
+            BrowserMenu.Action.SOUND -> command("mute", null)
             BrowserMenu.Action.AUTO_WATCH -> if (host != null && !browser.privateMode) {
                 if (prefs.autoWatch == WatchTarget.Auto.ALWAYS) { toast(R.string.auto_watch_every_site); return }
                 // Chosen while off: the setting turns to "Chosen sites only", with this one.
@@ -1910,7 +1911,7 @@ class MainActivity : Activity(), HomeView.Listener, Browser.Host, BrowserMenu.Ac
         private const val REQ_NOTIFICATIONS = 11
         private const val REQ_MIC = 12
         /** The commands Sofa Player takes in place of the page's video. */
-        private val PLAYER_COMMANDS = setOf("toggle", "play", "pause", "seekBy", "seekTo", "rate", "subs")
+        private val PLAYER_COMMANDS = setOf("toggle", "play", "pause", "seekBy", "seekTo", "rate", "subs", "mute")
         /** Seconds: shorter videos (trailers, previews, ads) stay with the page's player. */
         private const val SHORT_FOR_PLAYER = 60.0
         /** How long the page may take to fetch its manifests again. */

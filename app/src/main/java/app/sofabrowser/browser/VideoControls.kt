@@ -90,7 +90,7 @@ object VideoRelay {
     last = now;
     const tracks = textTracks(v);
     out.postMessage(JSON.stringify({ t: v.currentTime || 0, d: isFinite(v.duration) ? v.duration : 0, p: v.paused, r: v.playbackRate,
-      tt: tracks.length, ts: tracks.some((t) => t.mode === 'showing'), w: F }));
+      tt: tracks.length, ts: tracks.some((t) => t.mode === 'showing'), w: F, mu: v.muted || v.volume === 0 }));
   };
   // Subtitles Sofa can switch: the video's own text tracks. Players that draw subtitles themselves aren't reachable.
   const textTracks = (v) => [...(v.textTracks || [])].filter((t) => t.kind === 'subtitles' || t.kind === 'captions');
@@ -101,7 +101,7 @@ object VideoRelay {
     const lang = (navigator.language || '').slice(0, 2);
     (tracks.find((t) => (t.language || '').slice(0, 2) === lang) || tracks[0]).mode = 'showing';
   };
-  const events = ['timeupdate', 'play', 'pause', 'playing', 'waiting', 'seeked', 'ratechange', 'durationchange', 'loadedmetadata'];
+  const events = ['timeupdate', 'play', 'pause', 'playing', 'waiting', 'seeked', 'ratechange', 'durationchange', 'loadedmetadata', 'volumechange'];
   const onEvent = (e) => report(e.type !== 'timeupdate');
   // While Sofa's bar drives a video, the browser's own controls (always shown for a fullscreen <video>) would
   // sit under it; hide them until done.
@@ -407,6 +407,15 @@ object VideoRelay {
       case 'exit': if (document.exitFullscreen) document.exitFullscreen().catch(() => {}); break;
       case 'info': info(v); break;
       case 'subs': toggleSubtitles(v); report(true); break;
+      // Sound on or off for this video, also one the page started muted (many live players do) with an "Unmute"
+      // button of its own; a video left at volume 0 comes back at full volume.
+      case 'mute': {
+        const off = v.muted || v.volume === 0;
+        v.muted = !off;
+        if (off && v.volume === 0) v.volume = 1;
+        report(true);
+        break;
+      }
     }
   });
 })();
@@ -461,7 +470,7 @@ object VideoRelay {
                                 it.optBoolean("m"), it.optBoolean("p"), it.optBoolean("l"), it.optDouble("d", 0.0)))
                         }
                         else -> onState(VideoState(o.optDouble("t"), o.optDouble("d"), o.optBoolean("p", true), o.optDouble("r", 1.0),
-                            o.optInt("tt"), o.optBoolean("ts"), o.optString("w").takeIf { it.isNotEmpty() }))
+                            o.optInt("tt"), o.optBoolean("ts"), o.optString("w").takeIf { it.isNotEmpty() }, o.optBoolean("mu")))
                     }
                 }
             }
@@ -507,6 +516,8 @@ data class VideoState(
     val subtitleTracks: Int = 0, val subtitlesOn: Boolean = false,
     /** The id of the page frame whose video this is; null for Sofa Player's own state. */
     val frame: String? = null,
+    /** The video has no sound (muted, or at volume 0). */
+    val muted: Boolean = false,
 )
 
 /**
@@ -565,6 +576,8 @@ class VideoBar(context: Context, private val actions: Actions) : LinearLayout(co
     }
 
     private val playPause: ImageView
+    /** Sound on or off for the video: also for one the page started muted. */
+    private val mute: ImageView
     private val position: TextView
     private val durationText: TextView
     private val scrub: Scrubber
@@ -653,6 +666,8 @@ class VideoBar(context: Context, private val actions: Actions) : LinearLayout(co
         playPause = button(R.drawable.ic_pause, R.string.play_pause) { actions.command("toggle") }
         buttons.addView(playPause)
         buttons.addView(button(R.drawable.ic_fast_forward, R.string.forward_10) { actions.command("seekBy", 10.0) })
+        mute = button(R.drawable.ic_volume_up, R.string.mute_unmute) { actions.command("mute") }
+        buttons.addView(mute)
         buttons.addView(View(context), LayoutParams(0, 1, 1f))
         subtitles = button(R.drawable.ic_subtitles, R.string.subtitles) { actions.command("subs") }.apply { visibility = GONE }
         buttons.addView(subtitles)
@@ -749,6 +764,7 @@ class VideoBar(context: Context, private val actions: Actions) : LinearLayout(co
     fun update(s: VideoState) {
         state = s
         playPause.setImageResource(if (s.paused) R.drawable.ic_play_arrow else R.drawable.ic_pause)
+        mute.setImageResource(if (s.muted) R.drawable.ic_volume_off else R.drawable.ic_volume_up)
         if (!scrub.scrubbing) {
             position.text = time(s.position)
             scrub.progress = if (s.duration > 0) (s.position / s.duration).toFloat() else 0f

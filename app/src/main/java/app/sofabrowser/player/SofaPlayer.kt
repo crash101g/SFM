@@ -272,6 +272,7 @@ class SofaPlayer(private val context: Context, private val listener: Listener) {
             "seekTo" -> value?.let { p.seekTo((it * 1000).toLong()) }
             "rate" -> value?.let { p.playbackParameters = PlaybackParameters(it.toFloat()) }
             "subs" -> toggleSubtitles()
+            "mute" -> p.volume = if (p.volume > 0f) 0f else 1f
         }
         main.post(report)
     }
@@ -468,7 +469,8 @@ class SofaPlayer(private val context: Context, private val listener: Listener) {
             val text = groups(C.TRACK_TYPE_TEXT)
             listener.onState(VideoState(p.currentPosition / 1000.0, duration / 1000.0, !p.playWhenReady, p.playbackParameters.speed.toDouble(),
                 text.sumOf { g -> (0 until g.length).count(g::isTrackSupported) },
-                C.TRACK_TYPE_TEXT !in p.trackSelectionParameters.disabledTrackTypes && text.any { it.isSelected }))
+                C.TRACK_TYPE_TEXT !in p.trackSelectionParameters.disabledTrackTypes && text.any { it.isSelected },
+                muted = p.volume == 0f))
             main.removeCallbacks(this)
             if (ready) main.postDelayed(this, 500)
         }
