@@ -1,0 +1,1 @@
+Bookmarks can be renamed (the pencil button beside each one), and Multiview bookmarks ask for a name when saved. A Multiview bookmark lists its feeds under its name instead of a long address.

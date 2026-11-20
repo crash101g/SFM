@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.4-sfm.5 (2026-11-19)
+
+- **Named Multiview bookmarks:** Bookmark these feeds asks for a name ("News", "Saturday games" …), suggesting the
+  one the set already has. In Bookmarks, a Multiview bookmark lists its feeds under its name instead of its long
+  address.
+- **Rename any bookmark:** the pencil button beside each bookmark in Bookmarks renames it; its address stays shown.
+
 ## 1.2.4-sfm.4 (2026-11-19)
 
 - **Fix: stream pages behind Cloudflare's bot check now play in Multiview.** Web tiles took the browser's user agent,
