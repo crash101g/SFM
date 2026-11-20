@@ -54,6 +54,15 @@ class AdBlocker private constructor(private val context: Context) {
 
     private val blocked = AtomicInteger()
 
+    /** What waits for [ready]: pages that asked for their element hiding before the lists had loaded. */
+    private val waiting = ArrayList<() -> Unit>()
+
+    /** Runs [action] on the main thread once the lists have loaded: now if they have. */
+    fun whenReady(action: () -> Unit) {
+        synchronized(waiting) { if (!ready) { waiting += action; return } }
+        main.post(action)
+    }
+
     /** Requests, pop-ups and redirects blocked since the current page started. */
     val blockedCount: Int get() = blocked.get()
 
@@ -62,7 +71,8 @@ class AdBlocker private constructor(private val context: Context) {
             lists = runCatching { loadOrMigrate() }.getOrDefault(FilterList.defaults())
             runCatching { if (!rawFile(myList()).isFile || readMyFilters() in FilterList.MY_FILTERS_OLD_DEFAULTS) writeMyFilters(FilterList.MY_FILTERS_DEFAULT) }
             publish()
-            ready = true
+            val queued = synchronized(waiting) { ready = true; waiting.toList().also { waiting.clear() } }
+            queued.forEach { main.post(it) }
         }
     }
 

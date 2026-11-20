@@ -139,24 +139,32 @@ object InPageBlocking {
         if (!WebViews.addDocumentStartScript(web, script(key))) return
         val pages = Pages()
         WebViewCompat.addWebMessageListener(web, key.cosmetic, setOf("*")) { _, message, origin, _, reply ->
-            runCatching {
-                if (!active()) return@runCatching
-                val o = JSONObject(message.data ?: return@runCatching)
-                o.optString("o").takeIf { it.startsWith("http") }?.let { onTrapBlocked(it); return@runCatching }
-                val page = pages.get(blocker.rules, pageUrl(o.optString("u"), origin))
-                val keys = o.optJSONArray("k")
-                val out = JSONObject()
-                if (keys == null) {
-                    out.put("p", true)
-                    if (page != null) out.put("s", JSONArray(page.selectors)).put("g", page.generic)
-                } else {
-                    if (page == null) return@runCatching
-                    val found = blocker.rules.cosmetics.forKeys(page, List(minOf(keys.length(), MAX_KEYS)) { keys.optString(it) })
-                    if (found.isEmpty()) return@runCatching
-                    out.put("s", JSONArray(found))
-                }
-                reply.postMessage(out.toString())
+            // A page opened just after start asks before the lists have loaded (on a TV that takes seconds): it is
+            // answered once they have, or it would keep its ads for good, as it asks only once.
+            if (!blocker.ready) return@addWebMessageListener blocker.whenReady { answer(blocker, pages, active, onTrapBlocked, message, origin, reply) }
+            answer(blocker, pages, active, onTrapBlocked, message, origin, reply)
+        }
+    }
+
+    private fun answer(blocker: AdBlocker, pages: Pages, active: () -> Boolean, onTrapBlocked: (String) -> Unit,
+                       message: androidx.webkit.WebMessageCompat, origin: Uri, reply: androidx.webkit.JavaScriptReplyProxy) {
+        runCatching {
+            if (!active()) return@runCatching
+            val o = JSONObject(message.data ?: return@runCatching)
+            o.optString("o").takeIf { it.startsWith("http") }?.let { onTrapBlocked(it); return@runCatching }
+            val page = pages.get(blocker.rules, pageUrl(o.optString("u"), origin))
+            val keys = o.optJSONArray("k")
+            val out = JSONObject()
+            if (keys == null) {
+                out.put("p", true)
+                if (page != null) out.put("s", JSONArray(page.selectors)).put("g", page.generic)
+            } else {
+                if (page == null) return@runCatching
+                val found = blocker.rules.cosmetics.forKeys(page, List(minOf(keys.length(), MAX_KEYS)) { keys.optString(it) })
+                if (found.isEmpty()) return@runCatching
+                out.put("s", JSONArray(found))
             }
+            reply.postMessage(out.toString())
         }
     }
 
