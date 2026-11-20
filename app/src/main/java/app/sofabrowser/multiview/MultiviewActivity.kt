@@ -41,6 +41,9 @@ class MultiviewActivity : Activity() {
     private lateinit var root: FrameLayout
     private lateinit var grid: TileGrid
     private lateinit var empty: TextView
+    /** The four-web-feeds warning, along the bottom for a few seconds; shown once per visit to Multiview. */
+    private lateinit var notice: TextView
+    private var warned = false
     private val main = Handler(Looper.getMainLooper())
     private val probes = Executors.newSingleThreadExecutor()
 
@@ -72,11 +75,20 @@ class MultiviewActivity : Activity() {
         }
         root.addView(grid, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
         root.addView(empty, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
+        notice = Ui.text(this, 26, android.graphics.Color.WHITE).apply {
+            gravity = Gravity.CENTER
+            setBackgroundColor(0xE6202020.toInt())
+            setPadding(48.px, 24.px, 48.px, 24.px)
+            visibility = android.view.View.GONE
+        }
+        root.addView(notice, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+            Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply { bottomMargin = 48.px })
         setContentView(root)
     }
 
     override fun onStart() {
         super.onStart()
+        warned = false
         feeds = store.load().toMutableList()
         audio = store.audio
         clean = store.clean
@@ -198,6 +210,21 @@ class MultiviewActivity : Activity() {
         grid.solo = -1
         selected = selected.coerceIn(0, maxOf(0, tiles.size - 1))
         refreshMarks()
+        warnIfHeavy()
+    }
+
+    /**
+     * Four web feeds are more than the onn handles comfortably: they share the TV's one WebView process, and each video
+     * is composed by the app (measured: 1½–4 minutes to start them all and occasional stalls; two start in seconds and
+     * ran 5 minutes without one). Streams and cameras play in ExoPlayer and don't count.
+     */
+    private fun warnIfHeavy() {
+        if (warned || tiles.count { it is WebTile } < HEAVY_WEB_TILES) return
+        warned = true
+        notice.text = getString(R.string.multiview_heavy_warning)
+        notice.visibility = android.view.View.VISIBLE
+        // On the view's own queue: rebuilding the tiles clears [main]'s, which would leave the notice up.
+        notice.postDelayed({ notice.visibility = android.view.View.GONE }, NOTICE_MS)
     }
 
     private fun releaseTiles() {
@@ -519,6 +546,9 @@ class MultiviewActivity : Activity() {
 
     companion object {
         private const val STAGGER_MS = 3_000L
+        /** Web tiles from which Multiview warns ([warnIfHeavy]). */
+        const val HEAVY_WEB_TILES = 4
+        private const val NOTICE_MS = 10_000L
         private const val HOLD_MS = 600L
         private const val RELOAD_GAP_MS = 10_000L
     }

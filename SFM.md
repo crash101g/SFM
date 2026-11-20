@@ -39,7 +39,9 @@ site. On the onn with four stream feeds: 8 frames per page instead of about 190,
 of the page's pop-up ads or trap links, three tiles playing within 1½ minutes of Reload all feeds instead of 4, and
 none caught frozen in 10 minutes. If the player alone doesn't start before auto-reload's wait, the tile goes back to
 the whole page and learns again. Four videos still cost the TV most of its processor (WebView decodes in hardware but
-composes each video frame in the app), so two or three feeds remain smoother than four.
+composes each video frame in the app), so fewer feeds are smoother: with four web feeds Multiview shows a warning
+along the bottom for 10 s (once per visit). Two web feeds measured fine: both playing within about 10 s, and no stall
+in 5 minutes of sampling. Streams and cameras play in ExoPlayer and don't count towards the warning.
 
 **Clean view** (Menu → **Clean view: on**, remembered): no title bars and no orange frame, just the feeds. Left and
 Right give the sound to that side at once and mute the others; a speaker shows on the tile for a moment. OK still

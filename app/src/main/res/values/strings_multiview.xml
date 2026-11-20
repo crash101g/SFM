@@ -66,6 +66,7 @@
     <string name="mute_unmute">Mute or unmute</string>
     <string name="sound_on_off">Sound on/off</string>
     <string name="multiview_already">Already in Multiview as feed %1$d.</string>
+    <string name="multiview_heavy_warning">Four web feeds are a lot for this TV. They can take a few minutes to all start, and one may pause to buffer now and then. Two run smoothly.</string>
     <string name="multiview_menu_player_on">Player only: on</string>
     <string name="multiview_menu_player_off">Player only: off</string>
     <string name="multiview_menu_clean_off">Clean view: off</string>
