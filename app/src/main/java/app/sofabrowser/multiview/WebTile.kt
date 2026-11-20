@@ -42,6 +42,8 @@ class WebTile(context: Context, index: Int, feed: Feed, private val gate: Reload
     /** Shared by the tiles: whether auto-reload is on, and turns so only one feed reloads at a time. */
     interface ReloadGate {
         val enabled: Boolean
+        /** The first wait before a tile that hasn't started is reloaded ([AutoReload.waitFor] the grid's web tiles). */
+        val afterMs: Long
         fun free(now: Long): Boolean
         fun reserve(now: Long)
     }
@@ -53,7 +55,7 @@ class WebTile(context: Context, index: Int, feed: Feed, private val gate: Reload
     private val tick = object : Runnable {
         override fun run() {
             val now = SystemClock.uptimeMillis()
-            if (watching && gate.enabled) when (autoReload.check(now, gate.free(now))) {
+            if (watching && gate.enabled) when (autoReload.check(now, gate.free(now), gate.afterMs)) {
                 AutoReload.Action.RELOAD -> {
                     gate.reserve(now)
                     showStatus(context.getString(R.string.multiview_autoreload, autoReload.attempts, AutoReload.MAX_TRIES))

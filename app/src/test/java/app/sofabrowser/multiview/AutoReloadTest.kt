@@ -91,4 +91,19 @@ class AutoReloadTest {
         assertEquals(Action.RELOAD, r.check(22_000, allowed = true))
         assertEquals(1, r.attempts)
     }
+
+    @Test fun aFullGridWaitsLongerBeforeReloading() {
+        assertEquals(60_000L, AutoReload.waitFor(1))
+        assertEquals(240_000L, AutoReload.waitFor(4))
+        assertEquals(60_000L, AutoReload.waitFor(0))
+        val r = AutoReload()
+        r.loaded(0, manual = true)
+        // Four web tiles: still starting at 3 minutes is normal.
+        assertEquals(Action.NONE, r.check(180_000, afterMs = AutoReload.waitFor(4)))
+        assertEquals(Action.RELOAD, r.check(240_000, afterMs = AutoReload.waitFor(4)))
+        // The next wait doubles.
+        r.loaded(240_000, manual = false)
+        assertEquals(Action.NONE, r.check(700_000, afterMs = AutoReload.waitFor(4)))
+        assertEquals(Action.RELOAD, r.check(720_000, afterMs = AutoReload.waitFor(4)))
+    }
 }

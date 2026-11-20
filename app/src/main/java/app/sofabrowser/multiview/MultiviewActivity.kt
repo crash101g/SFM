@@ -320,6 +320,7 @@ class MultiviewActivity : Activity() {
     private val reloadGate = object : WebTile.ReloadGate {
         private var nextAt = 0L
         override val enabled get() = store.autoReload
+        override val afterMs get() = AutoReload.waitFor(tiles.count { it is WebTile })
         override fun free(now: Long) = now >= nextAt
         override fun reserve(now: Long) { nextAt = now + RELOAD_GAP_MS }
     }

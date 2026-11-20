@@ -4,8 +4,10 @@ package app.sofabrowser.multiview
  * When a web tile reloads itself (as the desktop multiview's `auto_reload` does). Plain Kotlin with the time passed in,
  * so the rules are unit-tested; [WebTile] feeds it what its page reports and acts on [check].
  *
- * - A feed that hasn't started playing [afterMs] after loading is reloaded; the wait grows with each try (20 s, 40 s,
- *   60 s …). After [maxTries] automatic reloads it gives up and says so.
+ * - A feed that hasn't started playing [afterMs] after loading is reloaded; the wait grows with each try (×2, ×3 …).
+ *   After [maxTries] automatic reloads it gives up and says so. [waitFor] gives the wait for a grid of web tiles: they
+ *   share the TV's one WebView process, so with four, each takes minutes to start (its Cloudflare check included), and
+ *   reloading sooner only restarts that check and gets the stream refused.
  * - A feed that has played is reloaded only for a player error screen still there [ERROR_HOLD_MS] later, while nothing
  *   on the page plays. Paused or buffering feeds are never reloaded; nor is a broken ad video beside a working stream.
  * - A page refused with 401 or 403 is never reloaded, as cameras never retry a refused login.
@@ -57,7 +59,7 @@ class AutoReload(private val afterMs: Long = AFTER_MS, private val maxTries: Int
      * What to do now; RELOAD and GIVE_UP are given once each, until the next [loaded]. With [allowed] false (another
      * feed is reloading) a due reload waits, and is given at a later check.
      */
-    fun check(now: Long, allowed: Boolean = true): Action {
+    fun check(now: Long, allowed: Boolean = true, afterMs: Long = this.afterMs): Action {
         if (refused || gaveUp) return Action.NONE
         val due = if (!played) {
             now - loadedAt >= afterMs * (tries + 1)
@@ -74,6 +76,11 @@ class AutoReload(private val afterMs: Long = AFTER_MS, private val maxTries: Int
 
     companion object {
         const val AFTER_MS = 20_000L
+        /** The first wait per web tile in the grid: one tile 60 s, four tiles 4 minutes. */
+        const val AFTER_MS_PER_WEB_TILE = 60_000L
+
+        /** The first wait for a grid with [webTiles] web tiles. */
+        fun waitFor(webTiles: Int): Long = AFTER_MS_PER_WEB_TILE * webTiles.coerceAtLeast(1)
         const val MAX_TRIES = 3
         const val ERROR_HOLD_MS = 2_000L
         /** A "playing" report this recent means something on the page still plays (pages report every 2 s). */
