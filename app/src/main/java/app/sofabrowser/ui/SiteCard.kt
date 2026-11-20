@@ -7,6 +7,7 @@ import android.text.TextUtils
 import android.view.Gravity
 import android.widget.ImageView
 import android.widget.LinearLayout
+import app.sofabrowser.R
 import app.sofabrowser.browser.UrlInput
 import app.sofabrowser.data.Favicons
 import app.sofabrowser.data.Site
@@ -39,7 +40,12 @@ class SiteCard(context: Context, val site: Site?, icon: Drawable? = null, label:
         })
         if (site != null) {
             texts.addView(Ui.text(context, 18, Ui.p.textWeak).apply {
-                text = UrlInput.display(site.url).substringBefore('/')
+                // A Multiview bookmark: how many feeds, not its long sfm: address.
+                text = if (app.sofabrowser.multiview.MultiviewBookmark.isOne(site.url))
+                    app.sofabrowser.multiview.MultiviewBookmark.feeds(site.url).size.let {
+                        context.resources.getQuantityString(R.plurals.multiview_bookmark_feeds, it, it)
+                    }
+                else UrlInput.display(site.url).substringBefore('/')
                 maxLines = 1
                 ellipsize = TextUtils.TruncateAt.END
                 setPadding(0, 8.px, 0, 0)
