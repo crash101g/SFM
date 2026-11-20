@@ -31,6 +31,16 @@ One feed fills the screen, two sit side by side, three or four make a 2×2 grid.
 | 1–4 / 0 | Sound to feed 1–4 / mute all |
 | Back | Leave full screen, then Multiview |
 
+**Player only** (Menu → **Player only: on**, the default): many stream pages are an ad-laden page around one embedded
+player frame. The first time a web feed's video plays in a frame that sits directly in the page, the tile remembers
+that frame (it names itself, and must match the origin WebView vouches for; http(s) only) and from then on loads a bare
+page of SFM's holding only that frame, under the feed's own address, so the player is embedded and referred as on the
+site. On the onn with four stream feeds: 8 frames per page instead of about 190, a third of the JavaScript heap, none
+of the page's pop-up ads or trap links, three tiles playing within 1½ minutes of Reload all feeds instead of 4, and
+none caught frozen in 10 minutes. If the player alone doesn't start before auto-reload's wait, the tile goes back to
+the whole page and learns again. Four videos still cost the TV most of its processor (WebView decodes in hardware but
+composes each video frame in the app), so two or three feeds remain smoother than four.
+
 **Clean view** (Menu → **Clean view: on**, remembered): no title bars and no orange frame, just the feeds. Left and
 Right give the sound to that side at once and mute the others; a speaker shows on the tile for a moment. OK still
 mutes or unmutes, and Menu still has everything else. Pages' own "Unmute" buttons are hidden in tiles (in every
