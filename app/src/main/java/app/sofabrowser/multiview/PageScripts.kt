@@ -51,6 +51,30 @@ object PageScripts {
     """.trimIndent()
 
     /**
+     * Pages' own "Unmute" buttons, hidden in tiles only: there SFM decides which tile is heard (and re-mutes a page that
+     * unmutes itself), so they do nothing but cover the picture. In the browser they stay, as they are the page's only
+     * way to turn its sound on. CSS only, and exact names, never "contains", so it can't hide a whole player whose class
+     * merely mentions muting.
+     */
+    val HIDE_UNMUTE = """
+        (function () {
+          if (window.__sfmHideUnmute) return;
+          try { Object.defineProperty(window, '__sfmHideUnmute', { value: true }); } catch (e) {}
+          var css = '#unmute,#unmute-button,#unmuteButton,#unmute-btn,.unmute,.unmute-button,.unmute-btn,.unmuteButton,' +
+            'button[aria-label="Unmute" i],button[title="Unmute" i]{display:none!important}';
+          function add() {
+            var root = document.documentElement;
+            if (!root) return false;
+            var st = document.createElement('style');
+            st.textContent = css;
+            (document.head || root).appendChild(st);
+            return true;
+          }
+          if (!add()) document.addEventListener('DOMContentLoaded', add, { once: true });
+        })();
+    """.trimIndent()
+
+    /**
      * Sound: one tile has it. Every frame keeps its audio and video elements muted until SFM says otherwise, also when
      * the page tries to unmute them; the top frame passes the setting down to its frames. Moving the sound must not stop
      * a feed: each tile is its own media session, and Android pauses the one that loses audio focus, so a video paused

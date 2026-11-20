@@ -113,6 +113,7 @@ class WebTile(context: Context, index: Int, feed: Feed, private val gate: Reload
         w.setBackgroundColor(android.graphics.Color.BLACK)
         scriptsAtStart = WebViews.addDocumentStartScript(w, PageScripts.NO_WEBRTC) &&
             WebViews.addDocumentStartScript(w, PageScripts.MUTE)
+        if (scriptsAtStart) WebViews.addDocumentStartScript(w, PageScripts.HIDE_UNMUTE)
         // Auto-reload needs the page's reports; without message listeners the tile just doesn't reload by itself.
         watching = scriptsAtStart && WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)
         if (watching) {
@@ -197,7 +198,7 @@ class WebTile(context: Context, index: Int, feed: Feed, private val gate: Reload
 
         override fun onPageFinished(view: WebView, url: String) {
             if (url != "about:blank") lock.pageFinished()
-            if (!scriptsAtStart) view.evaluateJavascript(PageScripts.MUTE, null)
+            if (!scriptsAtStart) { view.evaluateJavascript(PageScripts.MUTE, null); view.evaluateJavascript(PageScripts.HIDE_UNMUTE, null) }
             view.evaluateJavascript(PageScripts.setMuted(!audible), null)
         }
 

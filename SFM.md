@@ -33,8 +33,9 @@ One feed fills the screen, two sit side by side, three or four make a 2×2 grid.
 
 **Clean view** (Menu → **Clean view: on**, remembered): no title bars and no orange frame, just the feeds. Left and
 Right give the sound to that side at once and mute the others; a speaker shows on the tile for a moment. OK still
-mutes or unmutes, and Menu still has everything else. Players' own buttons inside a page (an "Unmute" button, say)
-belong to the page; hide one with a My filters rule such as `player.example###unmute`.
+mutes or unmutes, and Menu still has everything else. Pages' own "Unmute" buttons are hidden in tiles (in every
+view), since SFM decides which tile is heard; they stay in the browser, where they're the only way to turn a page's
+sound on. Don't hide such a button with a My filters rule: My filters applies in the browser too.
 
 ### From the browser
 
