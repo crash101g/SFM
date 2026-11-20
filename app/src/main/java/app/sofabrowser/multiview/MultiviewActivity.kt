@@ -100,7 +100,9 @@ class MultiviewActivity : Activity() {
         val urls = set.map { it.url }.toSet()
         val dropped = feeds.filterNotNull().filter { it.url !in urls && it.frame !in urls }
         val apply = {
-            feeds = (set + List(Feed.MAX - set.size) { null }).toMutableList()
+            // Feeds already here keep what they learned (their player frame).
+            val kept = set.map { f -> feeds.firstOrNull { it?.url == f.url && it.kind == f.kind }?.let { f.copy(player = it.player) } ?: f }
+            feeds = (kept + List(Feed.MAX - set.size) { null }).toMutableList()
             store.save(feeds)
             if (audio >= set.size) { audio = 0; store.audio = 0 }
             selected = 0
@@ -306,6 +308,10 @@ class MultiviewActivity : Activity() {
         items += getString(if (store.autoReload) R.string.multiview_menu_autoreload_on else R.string.multiview_menu_autoreload_off) to
             { store.autoReload = !store.autoReload }
         items += getString(if (clean) R.string.multiview_menu_clean_on else R.string.multiview_menu_clean_off) to { setClean(!clean) }
+        items += getString(if (store.playerOnly) R.string.multiview_menu_player_on else R.string.multiview_menu_player_off) to {
+            store.playerOnly = !store.playerOnly
+            reloadAll()
+        }
         if (!clean) items += getString(R.string.multiview_menu_titles) to { titles = !titles; tiles.forEach { it.titlesShown = titles } }
         items += getString(R.string.multiview_menu_edit) to { editFeeds() }
         items += getString(R.string.multiview_menu_bookmark) to { bookmarkFeeds() }
@@ -321,6 +327,13 @@ class MultiviewActivity : Activity() {
         private var nextAt = 0L
         override val enabled get() = store.autoReload
         override val afterMs get() = AutoReload.waitFor(tiles.count { it is WebTile })
+        override val playerOnly get() = store.playerOnly
+        override fun player(index: Int, url: String?) {
+            val f = feeds.getOrNull(index) ?: return
+            if (f.kind != Feed.Kind.WEB || f.player == url) return
+            feeds[index] = f.copy(player = url)
+            store.save(feeds)
+        }
         override fun free(now: Long) = now >= nextAt
         override fun reserve(now: Long) { nextAt = now + RELOAD_GAP_MS }
     }
@@ -400,6 +413,8 @@ class MultiviewActivity : Activity() {
             is Feed.Parsed.Ok -> r.feed
         }
         // A video from the browser, saved again unchanged in Edit feeds, keeps the page it plays for.
+        // A web feed saved again unchanged keeps the player frame it learned.
+        if (old?.player != null && feed.url == old.url && feed.kind == Feed.Kind.WEB) feed = feed.copy(player = old.player)
         if (video == null && old?.frame != null && feed.url == old.url && feed.kind != Feed.Kind.CAMERA) {
             feed = feed.copy(kind = Feed.Kind.STREAM, frame = old.frame, media = old.media, userAgent = old.userAgent)
         }

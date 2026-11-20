@@ -39,7 +39,8 @@ class FeedStore(context: Context) {
                 out[i] = Feed(kind, parsed.feed.url, o.optString("user").ifEmpty { null },
                     o.optString("password").ifEmpty { null }, o.optString("pin").ifEmpty { null },
                     frame = frame, media = frame != null && o.optBoolean("media"),
-                    userAgent = o.optString("ua").ifEmpty { null }?.takeIf { frame != null && it.none { c -> c < ' ' } })
+                    userAgent = o.optString("ua").ifEmpty { null }?.takeIf { frame != null && it.none { c -> c < ' ' } },
+                    player = o.optString("player").ifEmpty { null }?.takeIf { kind == Feed.Kind.WEB && PlayerOnly.valid(it) })
             }
         }
         return out
@@ -57,6 +58,7 @@ class FeedStore(context: Context) {
                 f.frame?.let { put("frame", it) }
                 if (f.media) put("media", true)
                 f.userAgent?.let { put("ua", it) }
+                f.player?.let { put("player", it) }
             })
         }
         val json = arr.toString()
@@ -73,6 +75,11 @@ class FeedStore(context: Context) {
     var clean: Boolean
         get() = prefs.getBoolean("clean", false)
         set(v) = prefs.edit().putBoolean("clean", v).apply()
+
+    /** Player only ([PlayerOnly]): web tiles load just their learned player frame (on by default). */
+    var playerOnly: Boolean
+        get() = prefs.getBoolean("player_only", true)
+        set(v) = prefs.edit().putBoolean("player_only", v).apply()
 
     /** Which tile (0–3) has the sound; -1 when all are muted. */
     var audio: Int

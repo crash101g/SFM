@@ -137,7 +137,7 @@ object PageScripts {
           var ch = window['$key'];
           if (!ch || window.__sfmWatch) return;
           try { Object.defineProperty(window, '__sfmWatch', { value: true }); } catch (e) {}
-          var last = new WeakMap();
+          var last = new WeakMap(), named = false;
           setInterval(function () {
             var playing = false, failed = false;
             var vs = document.querySelectorAll('video');
@@ -152,6 +152,10 @@ object PageScripts {
               if (e && e.getClientRects().length) failed = true;
             }
             try { if (playing) ch.postMessage('p'); else if (failed) ch.postMessage('e'); } catch (e) {}
+            // Player only: a frame sitting directly in the page whose video plays names itself, once.
+            try {
+              if (playing && !named && window !== window.top && window.parent === window.top) { named = true; ch.postMessage('f' + location.href); }
+            } catch (e) {}
           }, 2000);
         })();
     """.trimIndent()

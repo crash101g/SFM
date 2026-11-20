@@ -30,6 +30,8 @@ data class Feed(
     val media: Boolean = false,
     /** The browser's User-Agent when the video was sent, so the site sees the same browser. */
     val userAgent: String? = null,
+    /** A web feed's player frame, learned when its video played there ([PlayerOnly]); null until then. */
+    val player: String? = null,
 ) {
     enum class Kind { WEB, STREAM, CAMERA }
 

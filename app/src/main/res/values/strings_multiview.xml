@@ -66,6 +66,8 @@
     <string name="mute_unmute">Mute or unmute</string>
     <string name="sound_on_off">Sound on/off</string>
     <string name="multiview_already">Already in Multiview as feed %1$d.</string>
+    <string name="multiview_menu_player_on">Player only: on</string>
+    <string name="multiview_menu_player_off">Player only: off</string>
     <string name="multiview_menu_clean_off">Clean view: off</string>
     <string name="multiview_menu_clean_on">Clean view: on</string>
     <string name="multiview_clean_hint">Clean view: Left or Right plays that side’s sound. OK mutes or unmutes; Menu for the rest.</string>

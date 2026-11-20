@@ -46,7 +46,15 @@ class WebTile(context: Context, index: Int, feed: Feed, private val gate: Reload
         val afterMs: Long
         fun free(now: Long): Boolean
         fun reserve(now: Long)
+        /** Whether web tiles load only their learned player frame ([PlayerOnly]). */
+        val playerOnly: Boolean
+        /** Tile [index] learned its player frame, or (null) dropped it because it didn't play. */
+        fun player(index: Int, url: String?)
     }
+
+    /** The learned player frame; [usingPlayer] while the bare page holding it is what's loaded. */
+    private var player: String? = feed.player
+    private var usingPlayer = false
 
     private val autoReload = AutoReload()
     /** The page's channel for auto-reload; a random name, so pages can't guess another tile's. */
@@ -58,6 +66,8 @@ class WebTile(context: Context, index: Int, feed: Feed, private val gate: Reload
             if (watching && gate.enabled) when (autoReload.check(now, gate.free(now), gate.afterMs)) {
                 AutoReload.Action.RELOAD -> {
                     gate.reserve(now)
+                    // The player on its own didn't start: back to the whole page, which teaches it again.
+                    if (usingPlayer) { player = null; gate.player(index, null) }
                     showStatus(context.getString(R.string.multiview_autoreload, autoReload.attempts, AutoReload.MAX_TRIES))
                     main.postDelayed({ showStatus(null) }, 4_000)
                     load(manual = false)
@@ -90,7 +100,11 @@ class WebTile(context: Context, index: Int, feed: Feed, private val gate: Reload
         autoReload.loaded(SystemClock.uptimeMillis(), manual)
         lock.reset(feed.url)
         w.stopLoading()
-        w.loadUrl(feed.url)
+        val p = player?.takeIf { gate.playerOnly && PlayerOnly.valid(it) }
+        usingPlayer = p != null
+        // The bare page under the feed's own address, so the player is embedded and referred as on the site.
+        if (p != null) w.loadDataWithBaseURL(feed.url, PlayerOnly.page(p), "text/html", "utf-8", feed.url)
+        else w.loadUrl(feed.url)
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -119,11 +133,17 @@ class WebTile(context: Context, index: Int, feed: Feed, private val gate: Reload
         // Auto-reload needs the page's reports; without message listeners the tile just doesn't reload by itself.
         watching = scriptsAtStart && WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)
         if (watching) {
-            WebViewCompat.addWebMessageListener(w, watchKey, setOf("*")) { _, message, _, _, _ ->
+            WebViewCompat.addWebMessageListener(w, watchKey, setOf("*")) { _, message, origin, isMainFrame, _ ->
                 val now = SystemClock.uptimeMillis()
-                when (message.data) {
-                    "p" -> autoReload.playing(now)
-                    "e" -> autoReload.error(now)
+                val data = message.data.orEmpty()
+                when {
+                    data == "p" -> autoReload.playing(now)
+                    data == "e" -> autoReload.error(now)
+                    data.startsWith("f") && !isMainFrame && !usingPlayer ->
+                        PlayerOnly.learn(data.substring(1), origin.toString(), feed.url)?.takeIf { it != player }?.let {
+                            player = it
+                            gate.player(index, it)
+                        }
                 }
             }
             watching = WebViews.addDocumentStartScript(w, PageScripts.watch(watchKey))
