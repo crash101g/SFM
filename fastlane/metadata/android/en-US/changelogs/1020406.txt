@@ -1,0 +1,1 @@
+Home screen: reorder bookmarks (Menu > Move) and clear Most visited (hold OK on a site). Sound on/off for a page's video in the browser menu and on the video bar. Multiview tiles hide pages' own Unmute buttons.

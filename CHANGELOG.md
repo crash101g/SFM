@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.2.4-sfm.6 (2026-11-19)
+
+- **Reorder bookmarks:** on the home screen, Menu (or hold OK) on a bookmark → **Move**, then Left/Right and OK, as
+  for Quick access. The same menu opens, renames and removes it. The Bookmarks list follows the same order; new
+  bookmarks still come first.
+- **Clear Most visited:** on the home screen, hold OK (or Menu) on a Most visited site for **Remove from Most
+  visited** or **Clear Most visited**. History is kept; a site comes back once it is visited often again.
+- **Sound on/off for a page's video:** a new **Sound on/off** item in the browser menu, and a **Mute / Unmute**
+  button on the video bar (also for SFM's own player). It works on videos a page starts muted, without reaching the
+  page's own Unmute button; a video at volume 0 comes back at full volume.
+- **Multiview tiles hide pages' own "Unmute" buttons**, which only covered the picture: SFM decides which tile is
+  heard. In the browser they stay, as the page's only way to turn its sound on. (A My filters rule hiding one also
+  hid it in the browser, leaving a page that starts muted with no way to unmute.)
+- **Fix: ads hidden on pages opened right after SFM starts.** A page that asked for its element hiding before the
+  filter lists had loaded (a few seconds on a TV) got none and kept its ads, such as the chat-bubble pop-ups; it is
+  now answered once they have.
+
 ## 1.2.4-sfm.5 (2026-11-19)
 
 - **Named Multiview bookmarks:** Bookmark these feeds asks for a name ("News", "Saturday games" …), suggesting the

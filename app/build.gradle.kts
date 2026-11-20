@@ -51,8 +51,8 @@ android {
         // SFM releases: (MAJOR * 10000 + MINOR * 100 + PATCH) * 100 + SFM release, so 1.2.4-sfm.2 is 1020402
         // (the Sofa fork it comes from was at 10204, 1.2.4-tvcouch.1). tools/release.sh sets both.
         // Keep both literal: F-Droid reads them from here.
-        versionCode = 1020405
-        versionName = "1.2.4-sfm.5"
+        versionCode = 1020406
+        versionName = "1.2.4-sfm.6"
     }
 
     buildFeatures {
