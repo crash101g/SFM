@@ -59,6 +59,10 @@
     <string name="multiview_error_camera_https">Cameras on the home network have to use https.</string>
     <string name="multiview_error_login_phone">Camera logins aren\'t sent from the phone. Add the login on the TV.</string>
     <string name="multiview_error_bad_url">That isn\'t an address SFM can read.</string>
+    <string name="most_visited_remove">Remove from Most visited</string>
+    <string name="most_visited_clear">Clear Most visited</string>
+    <string name="most_visited_clear_message">Every site leaves Most visited. Your history is kept; a site comes back once you visit it often again.</string>
+    <string name="most_visited_clear_yes">Clear</string>
     <string name="mute_unmute">Mute or unmute</string>
     <string name="sound_on_off">Sound on/off</string>
     <string name="multiview_already">Already in Multiview as feed %1$d.</string>

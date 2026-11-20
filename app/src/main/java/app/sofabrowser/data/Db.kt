@@ -182,8 +182,12 @@ class Db private constructor(context: Context) : SQLiteOpenHelper(context, "sofa
      * Sites visited at least [minVisits] times in the last 30 days, grouped by host so that many pages of one
      * site count as that site. Hosts already pinned as tiles are left out.
      */
-    fun mostVisited(limit: Int, minVisits: Int = 3): List<Site> {
-        val since = System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000
+    /**
+     * Sites visited at least [minVisits] times in the last 30 days, most first. Visits before [clearedAt] ("Clear Most
+     * visited"), or before the time in [hidden] for their host ("Remove from Most visited"), don't count.
+     */
+    fun mostVisited(limit: Int, minVisits: Int = 3, clearedAt: Long = 0L, hidden: Map<String, Long> = emptyMap()): List<Site> {
+        val since = maxOf(System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000, clearedAt)
         val pinned = tiles().mapNotNull { hostOf(it.url) }.toSet()
         class Agg(val scheme: String, val latest: Long) {
             var count = 0
@@ -197,6 +201,7 @@ class Db private constructor(context: Context) : SQLiteOpenHelper(context, "sofa
                 val scheme = uri.scheme
                 val host = uri.host?.lowercase() ?: continue
                 if (scheme != "https" && scheme != "http") continue
+                if (c.getLong(2) <= (hidden[host] ?: 0L)) continue
                 val agg = byHost.getOrPut(host) { Agg(scheme, c.getLong(2)) }
                 agg.count++
                 if (agg.rootTitle == null && (uri.path.isNullOrEmpty() || uri.path == "/")) agg.rootTitle = c.getString(0)

@@ -723,6 +723,23 @@ class MainActivity : Activity(), HomeView.Listener, Browser.Host, BrowserMenu.Ac
         }.show()
     }
 
+    override fun onMostVisitedMenu(site: Site) {
+        val items = arrayOf(getString(R.string.open), getString(R.string.most_visited_remove), getString(R.string.most_visited_clear))
+        dialog().setTitle(site.title).setItems(items) { _, which ->
+            when (which) {
+                0 -> openUrl(site.url)
+                1 -> { Browser.hostOf(site.url)?.let { prefs.hideMostVisited(it) }; home.refresh(prefs.privateMode, prefs.adBlock) }
+                2 -> dialog().setTitle(R.string.most_visited_clear).setMessage(R.string.most_visited_clear_message)
+                    .setPositiveButton(R.string.most_visited_clear_yes) { _, _ ->
+                        prefs.mostVisitedClearedAt = System.currentTimeMillis()
+                        home.refresh(prefs.privateMode, prefs.adBlock)
+                    }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            }
+        }.show()
+    }
+
     override fun onBookmarkMenu(site: Site) {
         val items = arrayOf(getString(R.string.open), getString(R.string.move), getString(R.string.multiview_bookmark_rename),
             getString(R.string.remove))

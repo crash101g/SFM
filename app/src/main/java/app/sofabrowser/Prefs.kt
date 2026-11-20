@@ -109,6 +109,21 @@ class Prefs(context: Context) {
     /** Lets WebView darken pages that have no dark theme of their own. */
     var darkPages by boolean("dark_pages", false)
     var showMostVisited by boolean("most_visited", true)
+    /** "Clear Most visited": visits before this don't count. History itself is kept. */
+    var mostVisitedClearedAt by long("most_visited_cleared_at", 0L)
+    /** "Remove from Most visited", one site at a time: "host=time" lines; that host's earlier visits don't count. */
+    private var mostVisitedHiddenRaw by string("most_visited_hidden", "")
+
+    val mostVisitedHidden: Map<String, Long>
+        get() = mostVisitedHiddenRaw.lines().mapNotNull { l ->
+            val i = l.lastIndexOf('='); if (i <= 0) null else l.substring(0, i) to (l.substring(i + 1).toLongOrNull() ?: return@mapNotNull null)
+        }.toMap()
+
+    fun hideMostVisited(host: String, now: Long = System.currentTimeMillis()) {
+        // Entries older than the 30 days Most visited looks at no longer matter.
+        val keep = mostVisitedHidden.filterValues { now - it < 31L * 24 * 60 * 60 * 1000 } + (host.lowercase() to now)
+        mostVisitedHiddenRaw = keep.entries.joinToString("\n") { "${it.key}=${it.value}" }
+    }
     var privateMode by boolean("private_mode", false)
     var askedNotifications by boolean("asked_notifications", false)
     /** The WebView version the old-WebView warning was last shown for, and when. */

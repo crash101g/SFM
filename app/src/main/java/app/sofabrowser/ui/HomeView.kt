@@ -36,6 +36,8 @@ class HomeView(context: Context, private val listener: Listener) : FrameLayout(c
         fun onTileMenu(site: Site)
         /** Options for a bookmark on the home screen: open, move, rename, remove. */
         fun onBookmarkMenu(site: Site)
+        /** Options for a Most visited site: open, remove it, clear them all. */
+        fun onMostVisitedMenu(site: Site)
         fun onAddTile()
         fun onDownloads()
         fun onExit()
@@ -57,6 +59,7 @@ class HomeView(context: Context, private val listener: Listener) : FrameLayout(c
     private val micButton: LabeledIconButton
     private var tilesRow: LinearLayout? = null
     private var bookmarksRow: LinearLayout? = null
+    private var mostVisitedRow: LinearLayout? = null
 
     /** When non-null, the tile being moved with Left/Right; OK or Back drops it. */
     private var moving: SiteCard? = null
@@ -147,8 +150,12 @@ class HomeView(context: Context, private val listener: Listener) : FrameLayout(c
                 setOnClickListener { listener.onAddTile() }
             })
         }
+        mostVisitedRow = null
         if (!privateMode && prefs.showMostVisited) {
-            db.mostVisited(10).takeIf { it.isNotEmpty() }?.let { addRow(R.string.most_visited, it) }
+            mostVisitedRow = db.mostVisited(10, clearedAt = prefs.mostVisitedClearedAt, hidden = prefs.mostVisitedHidden)
+                .takeIf { it.isNotEmpty() }?.let {
+                    addRow(R.string.most_visited, it) { card -> card.setOnLongClickListener { card.site?.let(listener::onMostVisitedMenu); true } }
+                }
         }
         bookmarksRow = db.bookmarks().take(BOOKMARKS_SHOWN).takeIf { it.isNotEmpty() }?.let {
             addRow(R.string.bookmarks, it) { card -> card.setOnLongClickListener { card.site?.let(listener::onBookmarkMenu); true } }
@@ -209,6 +216,10 @@ class HomeView(context: Context, private val listener: Listener) : FrameLayout(c
             val focused = findFocus() as? SiteCard
             if (focused != null && focused.parent === tilesRow && focused.site != null) {
                 if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) listener.onTileMenu(focused.site)
+                return true
+            }
+            if (focused != null && focused.parent === mostVisitedRow && focused.site != null) {
+                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) listener.onMostVisitedMenu(focused.site)
                 return true
             }
             if (focused != null && focused.parent === bookmarksRow && focused.site != null) {
