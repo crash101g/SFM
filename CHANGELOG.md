@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.4-sfm.7 (2026-11-19)
+
+- **Fix: four web feeds in Multiview no longer give up.** Auto-reload reloaded a tile that hadn't started after
+  20 s, but with four ad-heavy pages sharing the TV's one WebView process a tile can need about 4 minutes to start.
+  Each early reload restarted its Cloudflare check, the streams were then refused, and tiles stopped after 3 tries.
+  The first wait is now 60 s per web tile on screen (1 minute for one, 4 minutes for four).
+- **Player only (Multiview, on by default):** once a web feed has played, its tile loads just the page's player frame
+  instead of the whole ad-laden page. On the onn with four stream feeds the tiles start much sooner (about 1½ minutes
+  instead of 4) and stop stalling, and the page's pop-up ads are gone. If the player alone won't start, the tile goes
+  back to the whole page. Menu → Player only to turn it off.
+- **Warning with four web feeds:** Multiview says, for a few seconds, that four web feeds are a lot for the TV (slow to
+  all start, an occasional pause to buffer) and that two run smoothly.
+
 ## 1.2.4-sfm.6 (2026-11-19)
 
 - **Reorder bookmarks:** on the home screen, Menu (or hold OK) on a bookmark → **Move**, then Left/Right and OK, as

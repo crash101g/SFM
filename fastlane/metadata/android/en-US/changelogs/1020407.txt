@@ -1,0 +1,1 @@
+Multiview: four web feeds no longer give up (auto-reload waits 60 s per tile), and Player only loads just each page's player once it has played, so tiles start sooner, stop stalling and lose the page's pop-up ads.
