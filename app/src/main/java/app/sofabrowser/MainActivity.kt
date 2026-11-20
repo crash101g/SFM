@@ -723,6 +723,38 @@ class MainActivity : Activity(), HomeView.Listener, Browser.Host, BrowserMenu.Ac
         }.show()
     }
 
+    override fun onBookmarkMenu(site: Site) {
+        val items = arrayOf(getString(R.string.open), getString(R.string.move), getString(R.string.multiview_bookmark_rename),
+            getString(R.string.remove))
+        dialog().setTitle(site.title).setItems(items) { _, which ->
+            when (which) {
+                0 -> openUrl(site.url)
+                1 -> home.startMoving(site, bookmark = true)
+                2 -> renameBookmark(site)
+                3 -> { db.removeBookmark(site.url); home.refresh(prefs.privateMode, prefs.adBlock) }
+            }
+        }.show()
+    }
+
+    private fun renameBookmark(site: Site) {
+        val default = if (app.sofabrowser.multiview.MultiviewBookmark.isOne(site.url))
+            app.sofabrowser.multiview.MultiviewBookmark.title(app.sofabrowser.multiview.MultiviewBookmark.feeds(site.url))
+        else UrlInput.display(site.url)
+        val input = EditText(this).apply {
+            setText(site.title)
+            isSingleLine = true
+            filters = arrayOf(android.text.InputFilter.LengthFilter(app.sofabrowser.multiview.MultiviewBookmark.MAX_NAME))
+            selectAll()
+        }
+        dialog().setTitle(R.string.multiview_bookmark_rename).setView(padded(input))
+            .setPositiveButton(R.string.multiview_bookmark_save) { _, _ ->
+                db.renameBookmark(site.url, app.sofabrowser.multiview.MultiviewBookmark.name(input.text.toString(), default))
+                home.refresh(prefs.privateMode, prefs.adBlock)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
     override fun onAddTile() = editTile(null)
 
     private fun editTile(site: Site?) {

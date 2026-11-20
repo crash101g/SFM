@@ -34,6 +34,8 @@ class HomeView(context: Context, private val listener: Listener) : FrameLayout(c
         fun onToggleAdBlock()
         fun onSettings()
         fun onTileMenu(site: Site)
+        /** Options for a bookmark on the home screen: open, move, rename, remove. */
+        fun onBookmarkMenu(site: Site)
         fun onAddTile()
         fun onDownloads()
         fun onExit()
@@ -54,6 +56,7 @@ class HomeView(context: Context, private val listener: Listener) : FrameLayout(c
     private val downloadsButton: LabeledIconButton
     private val micButton: LabeledIconButton
     private var tilesRow: LinearLayout? = null
+    private var bookmarksRow: LinearLayout? = null
 
     /** When non-null, the tile being moved with Left/Right; OK or Back drops it. */
     private var moving: SiteCard? = null
@@ -147,7 +150,9 @@ class HomeView(context: Context, private val listener: Listener) : FrameLayout(c
         if (!privateMode && prefs.showMostVisited) {
             db.mostVisited(10).takeIf { it.isNotEmpty() }?.let { addRow(R.string.most_visited, it) }
         }
-        db.bookmarks().take(12).takeIf { it.isNotEmpty() }?.let { addRow(R.string.bookmarks, it) }
+        bookmarksRow = db.bookmarks().take(BOOKMARKS_SHOWN).takeIf { it.isNotEmpty() }?.let {
+            addRow(R.string.bookmarks, it) { card -> card.setOnLongClickListener { card.site?.let(listener::onBookmarkMenu); true } }
+        }
 
         val restore = focusedUrl?.let { url -> findCard { it.site?.url == url } }
         (restore ?: if (findFocus() == null) tilesRow?.getChildAt(0) else null)?.requestFocus()
@@ -188,9 +193,10 @@ class HomeView(context: Context, private val listener: Listener) : FrameLayout(c
         return walk(rows)
     }
 
-    /** Enters move mode for the tile showing [site]. */
-    fun startMoving(site: Site) {
-        val card = findCard { it.site?.id == site.id && it.parent === tilesRow } ?: return
+    /** Enters move mode for the Quick access tile, or with [bookmark] the bookmark, showing [site]. */
+    fun startMoving(site: Site, bookmark: Boolean = false) {
+        val row = if (bookmark) bookmarksRow else tilesRow
+        val card = findCard { it.site?.id == site.id && it.parent === row } ?: return
         moving = card
         card.requestFocus()
         card.alpha = 0.75f
@@ -205,16 +211,21 @@ class HomeView(context: Context, private val listener: Listener) : FrameLayout(c
                 if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) listener.onTileMenu(focused.site)
                 return true
             }
+            if (focused != null && focused.parent === bookmarksRow && focused.site != null) {
+                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) listener.onBookmarkMenu(focused.site)
+                return true
+            }
         }
         val card = moving ?: return super.dispatchKeyEvent(event)
-        val row = tilesRow ?: return super.dispatchKeyEvent(event)
+        val row = card.parent as? LinearLayout ?: return super.dispatchKeyEvent(event)
+        val bookmarks = row === bookmarksRow
         if (event.action != KeyEvent.ACTION_DOWN) return true
         when (event.keyCode) {
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
                 val i = row.indexOfChild(card)
                 val j = i + if (event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) -1 else 1
-                // The last child is the "Add site" card, which stays last.
-                if (j in 0 until row.childCount - 1) {
+                // In Quick access the last child is the "Add site" card, which stays last.
+                if (j in 0 until row.childCount - if (bookmarks) 0 else 1) {
                     row.removeViewAt(i)
                     row.addView(card, j)
                     card.requestFocus()
@@ -224,9 +235,15 @@ class HomeView(context: Context, private val listener: Listener) : FrameLayout(c
                 moving = null
                 card.alpha = 1f
                 Ui.animateScale(card, 1.04f, false)
-                db.reorderTiles((0 until row.childCount).mapNotNull { (row.getChildAt(it) as SiteCard).site?.id })
+                val ids = (0 until row.childCount).mapNotNull { (row.getChildAt(it) as SiteCard).site?.id }
+                if (bookmarks) db.reorderBookmarks(ids) else db.reorderTiles(ids)
             }
         }
         return true
+    }
+
+    private companion object {
+        /** Bookmarks on the home screen; the rest are in Bookmarks. */
+        const val BOOKMARKS_SHOWN = 12
     }
 }

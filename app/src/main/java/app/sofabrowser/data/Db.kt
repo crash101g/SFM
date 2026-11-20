@@ -14,11 +14,12 @@ data class HistoryEntry(val id: Long, val title: String, val url: String, val vi
  * All persistent user data: quick-access tiles, bookmarks and history. Everything stays on the device;
  * there is no sync and no upload.
  */
-class Db private constructor(context: Context) : SQLiteOpenHelper(context, "sofa.db", null, 2) {
+class Db private constructor(context: Context) : SQLiteOpenHelper(context, "sofa.db", null, 3) {
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE tiles (id INTEGER PRIMARY KEY, title TEXT NOT NULL, url TEXT NOT NULL, position INTEGER NOT NULL)")
-        db.execSQL("CREATE TABLE bookmarks (id INTEGER PRIMARY KEY, title TEXT NOT NULL, url TEXT NOT NULL UNIQUE, created INTEGER NOT NULL)")
+        db.execSQL("CREATE TABLE bookmarks (id INTEGER PRIMARY KEY, title TEXT NOT NULL, url TEXT NOT NULL UNIQUE, created INTEGER NOT NULL, " +
+            "position INTEGER NOT NULL DEFAULT 0)")
         db.execSQL("CREATE TABLE history (id INTEGER PRIMARY KEY, title TEXT NOT NULL, url TEXT NOT NULL, visited INTEGER NOT NULL)")
         db.execSQL("CREATE INDEX history_visited ON history (visited)")
         db.execSQL("CREATE INDEX history_url ON history (url)")
@@ -32,6 +33,14 @@ class Db private constructor(context: Context) : SQLiteOpenHelper(context, "sofa
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) createDownloads(db)
+        if (oldVersion < 3) {
+            // Bookmarks get an order of their own (Move on the home screen), starting as they were shown: newest first.
+            db.execSQL("ALTER TABLE bookmarks ADD COLUMN position INTEGER NOT NULL DEFAULT 0")
+            val ids = db.rawQuery("SELECT id FROM bookmarks ORDER BY created DESC", null).use { c ->
+                buildList { while (c.moveToNext()) add(c.getLong(0)) }
+            }
+            ids.forEachIndexed { i, id -> db.update("bookmarks", ContentValues().apply { put("position", i) }, "id = ?", arrayOf(id.toString())) }
+        }
     }
 
     /** Downloads, with enough state to resume them (byte offset, validator) after a restart. */
@@ -84,17 +93,37 @@ class Db private constructor(context: Context) : SQLiteOpenHelper(context, "sofa
 
     // Bookmarks
 
-    fun bookmarks(): List<Site> = query("SELECT id, title, url FROM bookmarks ORDER BY created DESC") {
+    /** In the user's order (Move); a new bookmark comes first. */
+    fun bookmarks(): List<Site> = query("SELECT id, title, url FROM bookmarks ORDER BY position, created DESC") {
         Site(it.getLong(0), it.getString(1), it.getString(2))
     }
 
     fun isBookmarked(url: String): Boolean =
         readableDatabase.rawQuery("SELECT 1 FROM bookmarks WHERE url = ?", arrayOf(url)).use { it.moveToFirst() }
 
+    /** Adds a bookmark at the front, or renames one [url] already has, keeping its place. */
     fun addBookmark(title: String, url: String) {
-        writableDatabase.insertWithOnConflict("bookmarks", null, ContentValues().apply {
-            put("title", title.ifBlank { url }); put("url", url); put("created", System.currentTimeMillis())
-        }, SQLiteDatabase.CONFLICT_REPLACE)
+        val db = writableDatabase
+        if (isBookmarked(url)) return renameBookmark(url, title.ifBlank { url })
+        val first = db.compileStatement("SELECT COALESCE(MIN(position) - 1, 0) FROM bookmarks").simpleQueryForLong()
+        db.insert("bookmarks", null, ContentValues().apply {
+            put("title", title.ifBlank { url }); put("url", url); put("created", System.currentTimeMillis()); put("position", first)
+        })
+    }
+
+    /** Persists [ids] as the order of the first bookmarks; the rest keep theirs, after them. */
+    fun reorderBookmarks(ids: List<Long>) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val rest = bookmarks().map { it.id }.filter { it !in ids }
+            (ids + rest).forEachIndexed { i, id ->
+                db.update("bookmarks", ContentValues().apply { put("position", i) }, "id = ?", arrayOf(id.toString()))
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
     }
 
     /** The bookmark's title, or null if [url] isn't bookmarked. */
